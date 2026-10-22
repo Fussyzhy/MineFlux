@@ -1,0 +1,9 @@
+node_modules/
+dist/
+dist-electron/
+.tmp/
+smoke*.png
+smoke.txt
+probe.*
+*.log
+.DS_Store
