@@ -23,9 +23,9 @@
   <b>TypeScript</b> · <b>Electron</b> · <b>React</b> · <b>Vite</b> · <b>esbuild</b>
 </p>
 
-MineFlux 是一个**独立的、只做下载与安装**的 Minecraft 客户端安装工具。它的并发下载引擎、镜像源改写规则、加载器安装流程、整合包识别逻辑等设计参考了开源启动器 PCL（Plain Craft Launcher 2）的下载模块，但代码完全重写，不包含 PCL 的任何源码。
+MineFlux 是一个**独立的、只做下载与安装**的 Minecraft 客户端安装工具。它从零实现并发下载引擎、镜像源改写、加载器安装与整合包识别，只从官方与公共镜像 CDN 实时拉取文件。
 
-> 第三方非官方工具，与 Mojang / Microsoft / PCL 均无关联。
+> 第三方非官方工具，与 Mojang / Microsoft 均无关联。
 > 只从官方与公共镜像 CDN 实时拉取文件，**不内置、不转存任何游戏资源**，也**不提供启动、登录、正版验证**功能。
 
 <p align="center">
@@ -40,7 +40,6 @@ MineFlux 是一个**独立的、只做下载与安装**的 Minecraft 客户端�
 - [快速开始](#快速开始)
 - [项目结构](#项目结构)
 - [安装流程](#安装流程)
-- [与 PCL 下载逻辑的对应关系](#与-pcl-下载逻辑的对应关系)
 - [数据来源](#数据来源)
 - [已知限制](#已知限制)
 - [合规与免责声明](#合规与免责声明)
@@ -48,18 +47,18 @@ MineFlux 是一个**独立的、只做下载与安装**的 Minecraft 客户端�
 
 ## 界面
 
-整体框架参照 PCL 的 WPF 布局重排（无边框窗口 + 标题栏一级导航 + 每页左侧子导航），不是单页堆面板。
+整体是无边框窗口 + 标题栏一级导航 + 每页左侧子导航的三层结构，不是单页堆面板。
 
 视觉上是浅色极简风格：纯白背景、细分隔线排版，不使用卡片 / 阴影 / 渐变，只保留一个蓝色强调色；控件使用轻描边，具体表现在标题栏、侧边导航与各页面中。
 
-- **自定义标题栏**：左侧 Logo，中间一级导航「下载 / 实例管理 / 任务 / 设置 / 关于」，右侧 Java 状态胶囊与最小化 / 最大化 / 关闭按钮，对应 PCL 的 `FormMain` 标题栏导航。
-- **左侧子导航 + 右侧内容**：每个页面沿用 PCL 的 `MyPageLeft + MyPageRight` 结构——左侧单选列表（下载类型、设置分类、实例列表），右侧为页面标题行 + 可滚动内容区。
+- **自定义标题栏**：左侧 Logo，中间一级导航「下载 / 实例管理 / 任务 / 设置 / 关于」，右侧 Java 状态胶囊与最小化 / 最大化 / 关闭按钮。
+- **左侧子导航 + 右侧内容**：每个页面左侧是单选列表（下载类型、设置分类、实例列表），右侧为页面标题行 + 可滚动内容区。
 - **下载页**：左列版本列表 + 安装目录，右列版本详情与「配置并安装」入口；「整合包」子页支持拖拽与文件解析。
-- **详细配置页**：对应 PCL 的安装详细配置——返回箭头 + 实例名输入框，中间是可互斥的组件列表（Forge / NeoForge / Fabric / Quilt / Fabric API / OptiFine / OptiFabric / LiteLoader），选中项显示版本号并可清除或展开版本列表；不兼容的组件行会变灰并给出原因（如「与 Fabric 不兼容」），Fabric API / OptiFabric 按 PCL 逻辑自动跟随安装，底部为「开始下载」。
-- **任务页**：完整进度、分阶段进度、失败重试与运行日志，对应 PCL 的任务管理页。
+- **详细配置页**：返回箭头 + 实例名输入框，中间是可互斥的组件列表（Forge / NeoForge / Fabric / Quilt / Fabric API / OptiFine / OptiFabric / LiteLoader），选中项显示版本号并可清除或展开版本列表；不兼容的组件行会变灰并给出原因（如「与 Fabric 不兼容」），Fabric API / OptiFabric 会自动跟随安装，底部为「开始下载」。
+- **任务页**：完整进度、分阶段进度、失败重试与运行日志。
 - **实例管理页**：左侧实例列表，右侧概览（MC 版本 / 加载器 / 安装时间 / 文件数 / 隔离 / 清单状态）与操作（打开目录、校验补全、删除）。
 - **设置页**：下载源、并发与校验、安装目录、CurseForge API Key、Java 检测。
-- **关于页**：功能边界、数据来源、许可与 PCL 参考说明。
+- **关于页**：功能边界、数据来源与许可说明。
 
 | 详细配置 | 实例管理 | 设置 |
 |---|---|---|
@@ -102,11 +101,11 @@ src/renderer   React 界面（标题栏 + 页面 + 组件）
 
 - **版本列表**：Mojang 官方清单 + BMCLAPI 镜像，支持按正式版 / 快照 / 远古版筛选与搜索，标记最新版与已安装实例。
 - **完整原版下载**：版本 JSON、客户端 jar、`libraries/` 依赖库、资源索引、`assets/objects/` 全部资源、log4j 日志配置。
-- **校验与修复**：对目标目录中已存在的文件逐个 SHA1 + 大小校验，只补缺失/损坏的文件（即 PCL 的“补全/修复”逻辑）。
+- **校验与修复**：对目标目录中已存在的文件逐个 SHA1 + 大小校验，只补缺失/损坏的文件。
 
 ### 加载器安装
 
-对应 PCL 的 `McInstallLoadersGet()`，按 PCL 的叠加顺序 **Forge/NeoForge → OptiFine → LiteLoader → Fabric/Quilt** 合并版本 JSON：
+按固定叠加顺序 **Forge/NeoForge → OptiFine → LiteLoader → Fabric/Quilt** 合并版本 JSON：
 
 | 加载器 | 实现方式 | 需要 Java |
 |---|---|---|
@@ -120,22 +119,22 @@ src/renderer   React 界面（标题栏 + 页面 + 组件）
 | LiteLoader | 免 Java：按 `versions.json` 构造 tweakClass / libraries / `inheritsFrom` | 否 |
 | Fabric API / OptiFabric | Modrinth API 按 MC 版本 + 加载器解析后放进 `mods/` | 否 |
 
-Fabric/Quilt 与 OptiFine 同时选择时，按 PCL 的做法把 OptiFine 当作 Mod 安装（此时需要勾选 OptiFabric）。
+Fabric/Quilt 与 OptiFine 同时选择时，会把 OptiFine 当作 Mod 安装（此时需要勾选 OptiFabric）。
 
 ### 实例语义
 
-对应 PCL 的 `PathIndie` / `McInstallManifest` / `.pclignore`：
+一个 `versions/<实例>/` 目录就是一个实例，是否隔离由安装选项决定：
 
-- 可自定义**实例名称**（自动按 PCL 的文件夹名校验规则清洗非法字符 / 保留名）。
+- 可自定义**实例名称**（自动清洗非法字符与 Windows 保留名）。
 - **版本隔离**：开启后 `mods` / `resourcepacks` / `shaderpacks` 放进 `versions/<实例>/`，关闭则放进游戏根目录。
 - 实例版本 JSON 会合并全部加载器、移除 `inheritsFrom` / `jar`、改写 `id`，并复制实例 jar。
-- 安装过程写 `.pclignore` 标记，安装完成后写 `mineflux-install.json` 安装清单（组件、文件数、体积、完成状态）。
-- 同名实例再次安装按 PCL 的「补全 / 修复」语义处理：已存在的文件逐个校验 SHA1，只补缺失或损坏的文件，不会清空 `mods` 与存档。
+- 安装过程写安装中标记，安装完成后写 `mineflux-install.json` 安装清单（组件、文件数、体积、完成状态）。
+- 同名实例再次安装按「补全 / 修复」语义处理：已存在的文件逐个校验 SHA1，只补缺失或损坏的文件，不会清空 `mods` 与存档。
 - **实例管理页**：左侧实例列表，右侧概览与操作，支持「校验 / 补全」与删除实例（只删 `versions/<实例>`）。
 
 ### 整合包安装
 
-对应 PCL 的 `ModModpack.vb`，支持 7 类整合包，可点按钮选择文件，也可以直接**拖拽**到窗口：
+支持 7 类整合包，可点按钮选择文件，也可以直接**拖拽**到窗口：
 
 | 类型 | 识别标志 | 加载器来源 |
 |---|---|---|
@@ -236,9 +235,9 @@ yarn run test:ui
 src/
 ├─ core/                  # 纯 Node 逻辑，不依赖 Electron，可单独测试
 │  ├─ manifest.ts         # 版本清单获取与校验
-│  ├─ mirror.ts           # 官方地址 → BMCLAPI 镜像改写（对应 PCL 的 DlSource*）
+│  ├─ mirror.ts           # 官方地址 → BMCLAPI 镜像改写
 │  ├─ rules.ts            # version json 的 rules(os/arch/features) 判定
-│  ├─ version-json.ts     # inheritsFrom 合并、实例 JSON 规范化（对应 MergeJson）
+│  ├─ version-json.ts     # inheritsFrom 合并、实例 JSON 规范化
 │  ├─ maven.ts            # maven 坐标 → 仓库相对路径
 │  ├─ version.ts          # 解析 version json，生成文件下载清单（含实例路径）
 │  ├─ downloader.ts       # 并发下载引擎（分片 / 多源 / 校验 / 熔断）
@@ -249,15 +248,15 @@ src/
 │  │  ├─ liteloader.ts    # LiteLoader
 │  │  ├─ resources.ts     # Modrinth 上的 Fabric API / OptiFabric
 │  │  └─ sources.ts       # 各加载器 API / maven 地址与镜像
-│  ├─ modpack/            # 整合包识别与安装（对应 ModModpack.vb）
-│  ├─ instance.ts         # 实例语义：命名、隔离、.pclignore、安装清单
+│  ├─ modpack/            # 整合包识别与安装
+│  ├─ instance.ts         # 实例语义：命名、隔离、安装中标记、安装清单
 │  ├─ java.ts             # Java 探测与调用
 │  ├─ zip.ts              # 极简 ZIP 读写（整合包/安装器解析）
 │  ├─ fsutil.ts           # 原子写入、目录合并等
-│  ├─ install.ts          # 安装任务编排（对应 DlClientFix + McInstallLoadersGet）
+│  ├─ install.ts          # 安装任务编排
 │  └─ http.ts             # 多源顺序请求、超时、错误归一化
 ├─ shared/types.ts        # 主进程 ↔ 渲染进程契约
-└─ renderer/              # React UI（PCL 式标题栏 + 页面）
+└─ renderer/              # React UI（标题栏 + 页面）
    ├─ App.tsx             # 外壳：标题栏、页面切换、全局状态
    ├─ pages/              # 下载 / 详细配置 / 实例管理 / 任务 / 设置 / 关于
    ├─ components/         # 标题栏、侧边导航、版本列表、迷你任务、整合包、任务、日志、图标
@@ -297,27 +296,6 @@ mods/          (Fabric API / OptiFabric / OptiFine-as-Mod / 整合包 mods)
 安装清单        (versions/<实例>/mineflux-install.json)
 ```
 
-## 与 PCL 下载逻辑的对应关系
-
-| 本工具 | PCL 对应实现 | 说明 |
-|---|---|---|
-| `renderer/App.tsx` / `TitleBar` / `SideNav` | `FormMain.xaml`（标题栏导航）、`MyPageLeft / MyPageRight` | 页面框架：标题栏一级导航 + 左侧子导航 + 右侧内容区 |
-| `renderer/pages/InstallConfigPage.tsx` / `lib/install-config.ts` | `PageDownloadInstall.xaml.vb`（`LoadXxxGetError` / `ReloadSelected` / `GetSelectName` / 自动选择 Fabric API、OptiFabric） | 详细配置页：组件互斥、不可用原因、自动组件、默认实例名 |
-| `mirror.ts` | `ModDownload.DlSourceAssetsGet / DlSourceLibraryGet / DlSourceLauncherOrMetaGet` | 官方地址到 BMCLAPI 路径的改写规则 |
-| `manifest.ts` | `DlClientListMain / DlClientListMojangMain / DlClientListBmclapiMain` | 清单获取、条目数合理性校验、源自动切换 |
-| `rules.ts` | `ModMinecraft.McJsonRuleCheck` | rules 匹配语义 |
-| `version-json.ts` | `ModMinecraft.McJsonMerge`（`MergeJson`） | 多 profile 合并、`inheritsFrom` 展开、实例 JSON 规范化 |
-| `version.ts` | `McLibListGetWithJson / McAssetsListGet / McLibNetFilesFromInstance` | 库、natives、资源对象清单 |
-| `downloader.ts` | `ModNet.NetFile / NetThread / LoaderDownload` | 分片、多源切换、断点续传、校验、并发调度 |
-| `loaders/fabric.ts` | `McDownloadFabricLoader` | Fabric / Quilt meta profile |
-| `loaders/forge.ts` | `McDownloadForgeLoader` / `McDownloadNeoForgeLoader` | 旧版解包 / 新版运行 installer |
-| `loaders/optifine.ts` | `McDownloadOptiFineLoader` | 免 Java 方法 + installer 方法 |
-| `loaders/liteloader.ts` | `McDownloadLiteLoaderLoader` | 按 versions.json 构造 profile |
-| `loaders/resources.ts` | `McDownloadFabricAPI / OptiFabric` | Modrinth 解析 Fabric API / OptiFabric |
-| `modpack/index.ts` | `ModModpack.vb` | 7 类整合包识别与安装 |
-| `instance.ts` | `PathIndie` / `McInstallManifest` / `.pclignore` | 实例隔离、安装清单、安装标记 |
-| `install.ts` | `DlClientFix` + `McInstallLoadersGet` | 完整安装编排 |
-
 ## 数据来源
 
 | 用途 | 官方 | 镜像 |
@@ -345,27 +323,13 @@ BMCLAPI 是第三方公益镜像，使用时请遵守其使用规范，不要滥
 - 不跨进程续传：`.part` 文件只在同一次会话内用于续传，重启应用后会重新校验并重下损坏分片。
 - 主要为 Windows 设计并测试；macOS / Linux 未做验证。
 
-### 与 PCL 被禁用功能的差距
-
-PCL 2.99.0.0 用单一开关 `RestrictMcDownload = True`（`Modules/ModSecret.vb:18`）停掉了 MC 下载功能，实际拦截点共 6 处，影响 3 个功能面。本工具目前的覆盖情况：
-
-| 被禁功能 | PCL 拦截点 | 本工具状态 |
-|---|---|---|
-| 版本下载安装页整页（版本列表、实例名、7 个 Loader 卡片、开始下载） | `PageDownloadInstall.xaml.vb:17` | 已对齐（版本列表 + 详细配置页：实例名 / 隔离 / 组件互斥与不可用提示 / Fabric API / OptiFabric 自动跟随 / 开始下载） |
-| 整合包安装 7 类（CurseForge / HMCL / MMC / MCBBS / Modrinth / 带启动器压缩包 / 裸压缩包） | `ModModpack.vb:11`、`:88` | 已对齐 |
-| 资源详情页的整合包「安装」按钮 | `PageDownloadCompDetail.xaml.vb:275` | 本工具没有资源详情页，改为整合包页直接选文件 |
-| 拖拽 `.zip` / `.mrpack` 安装整合包 | `FormMain.xaml.vb:1079` | 已对齐（拖拽到整合包面板） |
-| 已有实例中更换 MC 本体版本（`CardMinecraft`） | `PageDownloadModify.vb:315` | 部分：可以覆盖安装补全，但没有独立的「换组件」界面 |
-
-另外说明两点，避免误解：PCL 这次**没有**禁用社区资源下载（Mod / 资源包 / 光影 / 存档仍可用），也没有禁 Java 管理；联机入口是 2.12.1 就隐藏的，与本次限制无关。本工具同样不提供这些功能，属于设计范围外。
-
 ## 合规与免责声明
 
 - 本项目**只下载与安装文件**，不启动游戏、不提供账号登录，也不包含任何游戏本体或资源文件。
 - 所有文件均实时从 Mojang 官方 CDN 或公开镜像获取，本项目不托管、不分发这些文件。
 - 使用本项目即表示你已知悉：下载与使用 Minecraft 需遵守 [Minecraft EULA](https://www.minecraft.net/eula) 及你所在地区的法律法规。
 - 请自行确认在你的使用场景下这样做是合规的；本项目不提供任何法律意见，也不对使用后果负责。
-- 如果你要分发本工具，请勿使用与 PCL 或 Minecraft 官方混淆的名称与图标。
+- 如果你要分发本工具，请勿使用与 Minecraft 官方混淆的名称与图标。
 
 ## License
 
