@@ -392,7 +392,7 @@ async function postJson<T>(urls: string[], body: unknown, apiKey: string | undef
   for (const url of urls) {
     try {
       const headers: Record<string, string> = {
-        'User-Agent': 'mcdownload/0.1',
+        'User-Agent': 'MineFlux/0.3.0',
         'Content-Type': 'application/json',
         Accept: 'application/json',
       }
@@ -430,7 +430,7 @@ async function resolveCurseForgeFiles(
     if (!apiKey) {
       log(
         'warn',
-        'CurseForge 整合包需要 API Key：请在设置里填写 CurseForge API Key（或设置环境变量 MCDL_CURSEFORGE_API_KEY）',
+        'CurseForge 整合包需要 API Key：请在设置里填写 CurseForge API Key（或设置环境变量 MINEFLUX_CURSEFORGE_API_KEY，旧名 MCDL_CURSEFORGE_API_KEY 仍可用）',
       )
     }
     throw error
@@ -558,7 +558,7 @@ export async function installModpack(
         await ensureDir(path.join(ctx.root, 'versions', ctx.instanceName))
         const manifest = {
           schema: 1,
-          app: 'mcdownload',
+          app: 'mineflux',
           instance: ctx.instanceName,
           mcVersion: versionId,
           components: {},
@@ -568,7 +568,7 @@ export async function installModpack(
           totalBytes: info.totalBytes,
           complete: true,
         }
-        await writeJsonAtomic(path.join(ctx.root, 'versions', ctx.instanceName, 'mcdl-install.json'), manifest)
+        await writeJsonAtomic(path.join(ctx.root, 'versions', ctx.instanceName, 'mineflux-install.json'), manifest)
       }
       return { downloads: [], warnings, compressOnly: true, extracted }
     }

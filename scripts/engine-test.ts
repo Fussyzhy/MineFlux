@@ -14,7 +14,7 @@ import { buildAssetPlan, type AssetIndexJson, type PlannedFile, type RawVersion 
 
 const MODE = 'official' as const
 const CONCURRENCY = Number(process.env.CONCURRENCY ?? 8)
-const root = path.join(os.tmpdir(), 'mcdl-e2e', '1.8.9')
+const root = path.join(os.tmpdir(), 'mineflux-e2e', '1.8.9')
 
 async function exists(file: string): Promise<boolean> {
   try {

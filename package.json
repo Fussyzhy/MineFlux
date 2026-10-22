@@ -1,8 +1,9 @@
 {
-  "name": "mcdownload",
-  "version": "0.2.0",
+  "name": "mineflux",
+  "productName": "MineFlux",
+  "version": "0.3.0",
   "private": true,
-  "description": "Standalone Minecraft version downloader with GUI (third-party, unofficial)",
+  "description": "MineFlux — standalone Minecraft version downloader with GUI (third-party, unofficial)",
   "packageManager": "yarn@1.22.22",
   "main": "dist-electron/main.js",
   "scripts": {

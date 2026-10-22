@@ -11,7 +11,7 @@ import type { RawVersion } from '../version-json'
 export type LoaderId = 'fabric' | 'quilt' | 'forge' | 'neoforge' | 'liteloader' | 'optifine'
 
 export interface LoaderVersionEntry {
-  /** 安装时使用的版本号（写入 mcdl-install.json） */
+  /** 安装时使用的版本号（写入 mineflux-install.json） */
   version: string
   label: string
   stable?: boolean

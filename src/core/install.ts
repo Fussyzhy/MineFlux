@@ -129,7 +129,7 @@ export class InstallTask {
     this.mode =
       request.mode === 'auto' && request.manifestSource === 'mojang' ? 'official' : request.mode
     this.instanceName = sanitizeInstanceName(request.instanceName || request.versionId)
-    this.tempDir = path.join(os.tmpdir(), 'mcdl-temp', this.id)
+    this.tempDir = path.join(os.tmpdir(), 'mineflux-temp', this.id)
     this.engine = new DownloadEngine({
       concurrency: Math.max(1, Math.min(64, request.concurrency || 24)),
       verifyHashes: request.verifyHashes,
@@ -361,7 +361,7 @@ export class InstallTask {
     // 显示为未完整，并按清单还原隔离目录——不再让取消安装的残骸被当成「外部创建的实例」
     await writeManifest(root, name, {
       schema: 1,
-      app: 'mcdownload',
+      app: 'mineflux',
       instance: name,
       mcVersion: raw.id,
       components: this.request.components ?? {},
@@ -912,7 +912,7 @@ export class InstallTask {
     const vanilla = this.vanillaRaw
     await writeManifest(root, this.instanceName, {
       schema: 1,
-      app: 'mcdownload',
+      app: 'mineflux',
       instance: this.instanceName,
       mcVersion: vanilla?.id ?? this.request.versionId,
       components: this.request.components ?? {},

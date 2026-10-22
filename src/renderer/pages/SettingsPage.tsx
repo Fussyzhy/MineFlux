@@ -162,7 +162,7 @@ export function SettingsPage({
                 <div className="settings-title">CurseForge API Key</div>
                 <div className="settings-desc">
                   下载 CurseForge 整合包里的文件需要官方 API Key（免费申请）。留空时会尝试镜像接口。
-                  也可以设置环境变量 MCDL_CURSEFORGE_API_KEY。
+                  也可以设置环境变量 MINEFLUX_CURSEFORGE_API_KEY（旧名 MCDL_CURSEFORGE_API_KEY 仍可用）。
                 </div>
                 <label className="field">
                   <span>API Key</span>

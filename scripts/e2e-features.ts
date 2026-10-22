@@ -33,7 +33,7 @@ import { InstallTask } from '../src/core/install'
 import { dataDirOf, listInstances, readManifest } from '../src/core/instance'
 
 const MODE = 'official' as const
-const baseDir = path.join(os.tmpdir(), 'mcdl-features')
+const baseDir = path.join(os.tmpdir(), 'mineflux-features')
 
 let passed = 0
 let failed = 0

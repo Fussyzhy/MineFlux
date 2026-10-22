@@ -10,7 +10,8 @@ import { readJsonFile, writeJsonAtomic } from './fsutil'
 
 export interface InstallManifest {
   schema: 1
-  app: 'mcdownload'
+  /** 0.3 起写 mineflux；'mcdownload' 是旧版本写入的值，读取时保持兼容 */
+  app: 'mineflux' | 'mcdownload'
   instance: string
   mcVersion: string
   components: InstallComponents
@@ -34,8 +35,17 @@ export function instanceJarPath(root: string, name: string): string {
   return path.join(instanceDir(root, name), `${name}.jar`)
 }
 
+/** 安装清单文件名；0.3 起改名，旧版本写的 mcdl-install.json 仍可读取 */
+const MANIFEST_FILE = 'mineflux-install.json'
+const LEGACY_MANIFEST_FILE = 'mcdl-install.json'
+
 export function manifestPath(root: string, name: string): string {
-  return path.join(instanceDir(root, name), 'mcdl-install.json')
+  return path.join(instanceDir(root, name), MANIFEST_FILE)
+}
+
+/** 0.2.x 及更早版本的清单文件名，仅用于读取兼容 */
+export function legacyManifestPath(root: string, name: string): string {
+  return path.join(instanceDir(root, name), LEGACY_MANIFEST_FILE)
 }
 
 /** 删除实例（只删 versions/<name>；根目录共享的 mods 等不动） */
@@ -87,11 +97,16 @@ export async function isInstalling(root: string, name: string): Promise<boolean>
 }
 
 export async function readManifest(root: string, name: string): Promise<InstallManifest | null> {
-  return readJsonFile<InstallManifest>(manifestPath(root, name))
+  const current = await readJsonFile<InstallManifest>(manifestPath(root, name))
+  if (current) return current
+  // 兼容旧清单，避免升级后已有实例被当成「外部实例」
+  return readJsonFile<InstallManifest>(legacyManifestPath(root, name))
 }
 
 export async function writeManifest(root: string, name: string, manifest: InstallManifest): Promise<void> {
   await writeJsonAtomic(manifestPath(root, name), manifest)
+  // 写完新清单后清掉旧文件，避免同一实例留下两份清单
+  await fsp.rm(legacyManifestPath(root, name), { force: true }).catch(() => undefined)
 }
 
 /** 按 PCL 的 ValidateFolderName 规则清洗实例名 */
@@ -134,7 +149,7 @@ function looksLikeVanillaBase(json: { inheritsFrom?: string; mainClass?: string 
   return Boolean(json.mainClass && VANILLA_MAIN_CLASSES.has(json.mainClass))
 }
 
-/** 列出所有实例：优先用 mcdl-install.json，外部实例则靠版本 JSON 推断 */
+/** 列出所有实例：优先用 mineflux-install.json（兼容旧版 mcdl-install.json），否则靠版本 JSON 推断 */
 export async function listInstances(root: string): Promise<InstalledInstance[]> {
   const versionsDir = path.join(root, 'versions')
   let entries: fs.Dirent[] = []

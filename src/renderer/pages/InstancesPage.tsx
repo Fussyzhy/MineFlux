@@ -202,8 +202,8 @@ export function InstancesPage({
                     <span className="info-value">
                       {current.managed
                         ? current.complete === false
-                          ? 'mcdl-install.json（不完整）'
-                          : 'mcdl-install.json（完整）'
+                          ? 'mineflux-install.json（不完整）'
+                          : 'mineflux-install.json（完整）'
                         : current.base
                           ? '无（原版基座）'
                           : '无（外部创建的实例）'}

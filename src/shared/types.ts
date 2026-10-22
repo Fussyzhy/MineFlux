@@ -211,7 +211,7 @@ export interface InstalledInstance {
   mcVersion?: string
   components: InstallComponents
   installedAt?: number
-  /** 实例文件夹里是否有 mcdl-install.json（否则是外部创建的实例） */
+  /** 实例文件夹里是否有 mineflux-install.json（否则是外部创建的实例） */
   managed: boolean
   /** 来自安装清单：是否版本隔离 */
   isolation?: boolean
@@ -241,7 +241,7 @@ export interface JavaReport {
   note?: string
 }
 
-export interface McdlApi {
+export interface MinefluxApi {
   getVersions(mode: SourceMode): Promise<VersionListResult>
   startInstall(req: InstallRequest): Promise<{ taskId: string }>
   pause(taskId: string): Promise<void>

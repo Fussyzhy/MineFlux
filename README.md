@@ -1,11 +1,13 @@
-# MC Downloader
+# MineFlux
 
-一个**独立的、只做下载与安装**的 Minecraft 客户端安装工具，使用 **TypeScript + Electron + React** 从零实现。
+MineFlux 是一个**独立的、只做下载与安装**的 Minecraft 客户端安装工具，使用 **TypeScript + Electron + React** 从零实现。
 
 它的并发下载引擎、镜像源改写规则、加载器安装流程、整合包识别逻辑等设计参考了开源启动器 PCL（Plain Craft Launcher 2）的下载模块，但代码为完全重写，不包含 PCL 的任何源码。
 
 > 第三方非官方工具，与 Mojang / Microsoft / PCL 均无关联。
 > 只从官方与公共镜像 CDN 实时拉取文件，**不内置、不转存任何游戏资源**，也**不提供启动、登录、正版验证**功能。
+
+> **改名说明**：0.3 起项目更名为 **MineFlux**（原名 MC Downloader / 包名 mcdownload）。旧实例里的安装清单 `mcdl-install.json` 与旧环境变量 `MCDL_*` 仍会被读取兼容。
 
 ![界面截图](docs/screenshot.png)
 
@@ -61,7 +63,7 @@ Fabric/Quilt 与 OptiFine 同时选择时，按 PCL 的做法把 OptiFine 当作
 - 可自定义**实例名称**（自动按 PCL 的文件夹名校验规则清洗非法字符 / 保留名）。
 - **版本隔离**：开启后 `mods` / `resourcepacks` / `shaderpacks` 放进 `versions/<实例>/`，关闭则放进游戏根目录。
 - 实例版本 JSON 会合并全部加载器、移除 `inheritsFrom` / `jar`、改写 `id`，并复制实例 jar。
-- 安装过程写 `.pclignore` 标记，安装完成后写 `mcdl-install.json` 安装清单（组件、文件数、体积、完成状态）。
+- 安装过程写 `.pclignore` 标记，安装完成后写 `mineflux-install.json` 安装清单（组件、文件数、体积、完成状态）。
 - 同名实例再次安装按 PCL 的「补全 / 修复」语义处理：已存在的文件逐个校验 SHA1，只补缺失或损坏的文件，不会清空 `mods` 与存档。
 - **实例管理页**：左侧实例列表，右侧概览与操作，支持「校验 / 补全」与删除实例（只删 `versions/<实例>`）。
 
@@ -98,8 +100,8 @@ RAR 不支持，会给出明确提示。
 
 - **下载源策略**：镜像优先（默认）/ 官方优先 / 仅镜像。自动模式下若发现镜像不可用，会自动切换到官方源。
 - **无边框窗口**：自绘标题栏与窗口控制按钮，标题栏可拖动，支持最大化 / 还原 / 最小化 / 关闭。
-- **Java 检测**：自动探测 `MCDL_JAVA_HOME` / `JAVA_HOME` / PATH / 常见安装目录 / 官方启动器 runtime，用于判断哪些加载器可以安装。
-- **CurseForge API Key**：可在设置里填写，也支持 `MCDL_CURSEFORGE_API_KEY` 环境变量；留空时使用镜像接口。
+- **Java 检测**：自动探测 `MINEFLUX_JAVA_HOME` / `JAVA_HOME` / PATH / 常见安装目录 / 官方启动器 runtime（旧名 `MCDL_JAVA_HOME` 仍兼容），用于判断哪些加载器可以安装。
+- **CurseForge API Key**：可在设置里填写，也支持 `MINEFLUX_CURSEFORGE_API_KEY` 环境变量（旧名 `MCDL_CURSEFORGE_API_KEY` 仍兼容）；留空时使用镜像接口。
 
 ## 快速开始
 
@@ -141,7 +143,7 @@ yarn smoke:install
 # 查看某版本的下载清单与体积
 yarn run e2e -- plan 1.8.9
 
-# 真实下载到 %TEMP%/mcdl-e2e/1.8.9
+# 真实下载到 %TEMP%/mineflux-e2e/1.8.9
 yarn run e2e -- install 1.8.9
 
 # 全量 SHA1 复验
@@ -158,7 +160,7 @@ yarn run e2e:features
 yarn run test:ui
 ```
 
-可用环境变量：`MCDL_MODE=auto|official|mirror`、`MCDL_CONCURRENCY=24`。
+可用环境变量：`MINEFLUX_MODE=auto|official|mirror`、`MINEFLUX_CONCURRENCY=24`（旧名 `MCDL_MODE` / `MCDL_CONCURRENCY` 仍兼容）。
 
 ## 项目结构
 
@@ -224,7 +226,7 @@ scripts/
 实例 jar       (versions/<实例>/<实例>.jar)
 mods/          (Fabric API / OptiFabric / OptiFine-as-Mod / 整合包 mods)
 整合包覆盖文件   (overrides → 数据目录)
-安装清单        (versions/<实例>/mcdl-install.json)
+安装清单        (versions/<实例>/mineflux-install.json)
 ```
 
 ## 与 PCL 下载逻辑的对应关系

@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react'
 import type { JavaReport, TaskSnapshot, WindowAction } from '../../shared/types'
 import type { PageId } from '../lib/nav'
+import iconUrl from '../assets/mineflux.png'
 import {
   IconClose,
   IconDownload,
@@ -48,9 +49,9 @@ export function TitleBar({ page, onPage, javaReport, task, maximized, onWindow }
   return (
     <header className="titlebar">
       <div className="brand">
-        <div className="brand-logo">MC</div>
+        <img className="brand-logo" src={iconUrl} alt="MineFlux" draggable={false} />
         <div>
-          <div className="brand-title">MC Downloader</div>
+          <div className="brand-title">MineFlux</div>
           <div className="brand-sub">第三方 · 非官方 · 仅下载</div>
         </div>
       </div>

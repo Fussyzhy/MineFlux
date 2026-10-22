@@ -75,7 +75,7 @@ export function ModpackPanel({
           const files = Array.from(event.dataTransfer.files ?? [])
           const file = files[0]
           if (!file) return
-          const path = window.mcdl.getPathForFile(file)
+          const path = window.mineflux.getPathForFile(file)
           if (path) onFile(path)
         }}
         onClick={() => !busy && void onPick()}

@@ -3,7 +3,7 @@
  * 多源顺序的语义对应 PCL 的 DlSourceOrder / DlSourceLoader。
  */
 
-export const USER_AGENT = 'mcdownload/0.1 (+https://github.com/) third-party-downloader'
+export const USER_AGENT = 'MineFlux/0.3.0 (+https://github.com/) third-party-downloader'
 
 export interface RequestInitEx {
   signal?: AbortSignal

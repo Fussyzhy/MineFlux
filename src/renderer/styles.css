@@ -1,5 +1,5 @@
 /* ==================================================================
-   MC Downloader · 浅色极简主题（无卡片）
+   MineFlux · 浅色极简主题（无卡片）
    设计原则：纯白纸面 + 细分隔线排版，不用卡片、阴影与渐变；
    仅用单一蓝色强调色，控件保持轻描边。
    ================================================================== */
@@ -121,13 +121,9 @@ textarea {
   width: 26px;
   height: 26px;
   border-radius: 6px;
-  display: grid;
-  place-items: center;
-  background: var(--accent);
-  color: #fff;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  display: block;
+  object-fit: contain;
+  flex: none;
 }
 
 .brand-title {
@@ -1721,12 +1717,8 @@ select:focus {
   width: 44px;
   height: 44px;
   border-radius: 9px;
-  display: grid;
-  place-items: center;
-  background: var(--accent);
-  color: #fff;
-  font-size: 14px;
-  font-weight: 700;
+  display: block;
+  object-fit: contain;
   flex: none;
 }
 

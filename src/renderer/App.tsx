@@ -62,7 +62,7 @@ function cleanComponents(components: InstallComponents): InstallComponents {
 }
 
 export default function App() {
-  const api = window.mcdl
+  const api = window.mineflux
 
   const [page, setPage] = useState<PageId>('download')
   const [tab, setTab] = useState<DownloadTab>('version')

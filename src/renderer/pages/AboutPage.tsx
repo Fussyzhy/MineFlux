@@ -1,5 +1,6 @@
 import type { JavaReport } from '../../shared/types'
 import { PageHeader } from '../components/PageHeader'
+import iconUrl from '../assets/mineflux.png'
 
 interface Props {
   appVersion: string
@@ -24,9 +25,9 @@ export function AboutPage({ appVersion, javaReport, onOpenExternal }: Props) {
       <PageHeader title="关于" subtitle="工具说明、数据来源与开源许可" />
       <div className="page-body">
         <div className="card about-hero">
-          <div className="about-logo">MC</div>
+          <img className="about-logo" src={iconUrl} alt="MineFlux" draggable={false} />
           <div>
-            <div className="about-name">MC Downloader</div>
+            <div className="about-name">MineFlux</div>
             <div className="about-tagline">
               独立 Minecraft 下载 / 安装工具 · v{appVersion} · 第三方非官方项目
             </div>

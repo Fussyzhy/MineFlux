@@ -68,7 +68,7 @@ export function InstallConfigPage({
   onBack,
   onStart,
 }: Props) {
-  const api = window.mcdl
+  const api = window.mineflux
   const components = options.components
   const [lists, setLists] = useState<LoaderLists>({})
   const [mods, setMods] = useState<Partial<Record<ModKey, ModListState>>>({})

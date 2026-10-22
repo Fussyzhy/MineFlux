@@ -1,8 +1,8 @@
-import type { McdlApi } from '../shared/types'
+import type { MinefluxApi } from '../shared/types'
 
 declare global {
   interface Window {
-    mcdl: McdlApi
+    mineflux: MinefluxApi
   }
 }
 

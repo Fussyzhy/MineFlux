@@ -1,7 +1,7 @@
 /**
  * 端到端测试脚本（不依赖 Electron）：
  *   yarn run e2e -- plan 1.8.9       查看下载清单与体积
- *   yarn run e2e -- install 1.8.9    真实下载到 %TEMP%/mcdl-e2e/1.8.9
+ *   yarn run e2e -- install 1.8.9    真实下载到 %TEMP%/mineflux-e2e/1.8.9
  *   yarn run e2e -- verify 1.8.9     全量校验已下载文件
  */
 import os from 'node:os'
@@ -19,10 +19,13 @@ import {
   type RawVersion,
 } from '../src/core/version'
 
-const MODE = (process.env.MCDL_MODE as 'auto' | 'official' | 'mirror') ?? 'auto'
+/** 新环境变量名优先，兼容旧名 MCDL_* */
+const envValue = (name: string): string | undefined =>
+  process.env[`MINEFLUX_${name}`] ?? process.env[`MCDL_${name}`]
+const MODE = (envValue('MODE') as 'auto' | 'official' | 'mirror') ?? 'auto'
 const [command, versionIdArg] = process.argv.slice(2)
 const versionId = versionIdArg ?? '1.21.4'
-const root = path.join(os.tmpdir(), 'mcdl-e2e', versionId)
+const root = path.join(os.tmpdir(), 'mineflux-e2e', versionId)
 
 function bytes(value: number): string {
   if (value <= 0) return '0 B'
@@ -96,9 +99,9 @@ async function main(): Promise<void> {
         versionUrl: version.url,
         versionSha1: version.sha1,
         root,
-        instanceName: process.env.MCDL_INSTANCE ?? version.id,
+        instanceName: envValue('INSTANCE') ?? version.id,
         mode: MODE,
-        concurrency: Number(process.env.MCDL_CONCURRENCY ?? 24),
+        concurrency: Number(envValue('CONCURRENCY') ?? 24),
         verifyHashes: true,
         manifestSource: manifest.source,
         isolation: true,
@@ -164,7 +167,7 @@ async function main(): Promise<void> {
     const manifest = await fetchVersionManifest('official')
     const version = manifest.versions.find((item) => item.id === versionId)
     if (!version) throw new Error(`未找到版本 ${versionId}`)
-    const root = path.join(os.tmpdir(), 'mcdl-stress', versionId)
+    const root = path.join(os.tmpdir(), 'mineflux-stress', versionId)
     await fs.rm(root, { recursive: true, force: true })
 
     const makeTask = (verifyHashes: boolean) =>

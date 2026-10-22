@@ -35,6 +35,31 @@ function settingsFile(): string {
   return path.join(app.getPath('userData'), 'settings.json')
 }
 
+/** 应用图标：开发与打包时都在项目根的 build/icon.png（esbuild 只打包代码，不搬资源） */
+function appIconPath(): string | undefined {
+  const candidate = path.join(app.getAppPath(), 'build', 'icon.png')
+  return fs.existsSync(candidate) ? candidate : undefined
+}
+
+/**
+ * 0.3 起应用改名为 MineFlux，userData 目录随之从 mcdownload 变成 MineFlux。
+ * 首次启动时把旧设置复制过来，避免用户丢失安装目录与 CurseForge Key 配置。
+ */
+function migrateLegacyUserData(): void {
+  const target = app.getPath('userData')
+  const targetFile = path.join(target, 'settings.json')
+  if (fs.existsSync(targetFile)) return
+  const legacyFile = path.join(app.getPath('appData'), 'mcdownload', 'settings.json')
+  if (!fs.existsSync(legacyFile)) return
+  try {
+    fs.mkdirSync(target, { recursive: true })
+    fs.copyFileSync(legacyFile, targetFile)
+    console.log('[mineflux] 已从旧目录迁移 settings.json')
+  } catch (error) {
+    console.error('[mineflux] 迁移旧设置失败', error)
+  }
+}
+
 function defaultRoot(): string {
   const mc = path.join(app.getPath('appData'), '.minecraft')
   if (fs.existsSync(path.join(mc, 'versions'))) return mc
@@ -48,7 +73,8 @@ function defaultSettings(): Settings {
     concurrency: 24,
     verifyHashes: true,
     isolation: true,
-    curseforgeApiKey: process.env.MCDL_CURSEFORGE_API_KEY ?? '',
+    curseforgeApiKey:
+      process.env.MINEFLUX_CURSEFORGE_API_KEY ?? process.env.MCDL_CURSEFORGE_API_KEY ?? '',
   }
 }
 
@@ -72,14 +98,14 @@ function saveSettings(settings: Settings): void {
 
 /** 冒烟测试专用的独立安装目录，避免污染用户目录 */
 function smokeRootPath(): string {
-  return path.join(app.getPath('temp'), 'mcdl-smoke-ui')
+  return path.join(app.getPath('temp'), 'mineflux-smoke-ui')
 }
 
 // ------------------------------------------------------------------ 窗口
 
 function sendEvent(event: TaskEvent): void {
   if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('mcdl:event', event)
+    mainWindow.webContents.send('mineflux:event', event)
   }
 }
 
@@ -101,7 +127,8 @@ function createWindow(): BrowserWindow {
     autoHideMenuBar: true,
     frame: false,
     show: !isSmoke,
-    title: 'MC Downloader',
+    title: 'MineFlux',
+    icon: appIconPath(),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -114,7 +141,7 @@ function createWindow(): BrowserWindow {
 
   const sendWindowState = (): void => {
     if (!mainWindow || mainWindow.isDestroyed()) return
-    mainWindow.webContents.send('mcdl:windowState', { maximized: mainWindow.isMaximized() })
+    mainWindow.webContents.send('mineflux:windowState', { maximized: mainWindow.isMaximized() })
   }
   window.on('maximize', sendWindowState)
   window.on('unmaximize', sendWindowState)
@@ -153,7 +180,7 @@ function createTask(request: InstallRequest): InstallTask {
 }
 
 function registerIpc(): void {
-  ipcMain.handle('mcdl:getVersions', async (_event, mode: InstallRequest['mode']) => {
+  ipcMain.handle('mineflux:getVersions', async (_event, mode: InstallRequest['mode']) => {
     const cached = manifestCache.get(mode)
     if (cached && Date.now() - cached.at < 5 * 60 * 1000) return cached.value
     const value = await fetchVersionManifest(mode)
@@ -161,7 +188,7 @@ function registerIpc(): void {
     return value
   })
 
-  ipcMain.handle('mcdl:startInstall', async (_event, request: InstallRequest) => {
+  ipcMain.handle('mineflux:startInstall', async (_event, request: InstallRequest) => {
     const settings = loadSettings()
     const filled: InstallRequest = {
       ...request,
@@ -193,12 +220,12 @@ function registerIpc(): void {
     return activeTask
   }
 
-  ipcMain.handle('mcdl:pause', async () => requireTask().pause())
-  ipcMain.handle('mcdl:resume', async () => requireTask().resume())
-  ipcMain.handle('mcdl:cancel', async () => requireTask().cancel())
-  ipcMain.handle('mcdl:retryFailed', async () => requireTask().retryFailed())
+  ipcMain.handle('mineflux:pause', async () => requireTask().pause())
+  ipcMain.handle('mineflux:resume', async () => requireTask().resume())
+  ipcMain.handle('mineflux:cancel', async () => requireTask().cancel())
+  ipcMain.handle('mineflux:retryFailed', async () => requireTask().retryFailed())
 
-  ipcMain.handle('mcdl:chooseFolder', async () => {
+  ipcMain.handle('mineflux:chooseFolder', async () => {
     const result = await dialog.showOpenDialog({
       title: '选择游戏目录',
       properties: ['openDirectory', 'createDirectory'],
@@ -208,7 +235,7 @@ function registerIpc(): void {
     return result.filePaths[0]
   })
 
-  ipcMain.handle('mcdl:revealPath', async (_event, target: string) => {
+  ipcMain.handle('mineflux:revealPath', async (_event, target: string) => {
     try {
       const stat = fs.statSync(target)
       if (stat.isDirectory()) await shell.openPath(target)
@@ -218,28 +245,28 @@ function registerIpc(): void {
     }
   })
 
-  ipcMain.handle('mcdl:openExternal', async (_event, url: string) => {
+  ipcMain.handle('mineflux:openExternal', async (_event, url: string) => {
     if (/^https?:\/\//i.test(url)) await shell.openExternal(url)
   })
 
-  ipcMain.handle('mcdl:getSettings', async () => {
+  ipcMain.handle('mineflux:getSettings', async () => {
     const settings = loadSettings()
     if (isSmoke) return { ...settings, root: smokeRootPath() }
     return settings
   })
-  ipcMain.handle('mcdl:saveSettings', async (_event, settings: Settings) => {
+  ipcMain.handle('mineflux:saveSettings', async (_event, settings: Settings) => {
     saveSettings(settings)
   })
-  ipcMain.handle('mcdl:suggestRoot', async () => defaultRoot())
-  ipcMain.handle('mcdl:appVersion', async () => app.getVersion())
-  ipcMain.handle('mcdl:getInstalledVersions', async (_event, root: string) => {
+  ipcMain.handle('mineflux:suggestRoot', async () => defaultRoot())
+  ipcMain.handle('mineflux:appVersion', async () => app.getVersion())
+  ipcMain.handle('mineflux:getInstalledVersions', async (_event, root: string) => {
     return listInstances(root)
   })
-  ipcMain.handle('mcdl:removeInstance', async (_event, root: string, name: string) => {
+  ipcMain.handle('mineflux:removeInstance', async (_event, root: string, name: string) => {
     await removeInstance(root, name)
   })
 
-  ipcMain.handle('mcdl:windowControl', async (event, action: 'minimize' | 'maximize' | 'close') => {
+  ipcMain.handle('mineflux:windowControl', async (event, action: 'minimize' | 'maximize' | 'close') => {
     const win = BrowserWindow.fromWebContents(event.sender)
     if (!win) return false
     if (action === 'minimize') {
@@ -256,7 +283,7 @@ function registerIpc(): void {
     return willMaximize
   })
 
-  ipcMain.handle('mcdl:chooseModpackFile', async () => {
+  ipcMain.handle('mineflux:chooseModpackFile', async () => {
     const result = await dialog.showOpenDialog({
       title: '选择整合包',
       properties: ['openFile'],
@@ -269,19 +296,19 @@ function registerIpc(): void {
     return result.filePaths[0]
   })
 
-  ipcMain.handle('mcdl:inspectModpack', async (_event, file: string) => {
+  ipcMain.handle('mineflux:inspectModpack', async (_event, file: string) => {
     return inspectModpack(file, (level, text) => emitLog({ time: Date.now(), level, text }))
   })
 
   ipcMain.handle(
-    'mcdl:getLoaderVersions',
+    'mineflux:getLoaderVersions',
     async (_event, id: LoaderId, mcVersion: string, mode: SourceMode): Promise<LoaderVersionList> => {
       return listLoaderVersions(id, { mcVersion, mode })
     },
   )
 
   ipcMain.handle(
-    'mcdl:getModVersions',
+    'mineflux:getModVersions',
     async (
       _event,
       slug: 'fabric-api' | 'optifabric',
@@ -293,7 +320,7 @@ function registerIpc(): void {
     },
   )
 
-  ipcMain.handle('mcdl:detectJava', async () => {
+  ipcMain.handle('mineflux:detectJava', async () => {
     const versions = await detectJava()
     return {
       found: versions.length,
@@ -434,6 +461,8 @@ async function runSmoke(window: BrowserWindow): Promise<void> {
 if (isSmoke) app.disableHardwareAcceleration()
 
 app.whenReady().then(async () => {
+  migrateLegacyUserData()
+  if (process.platform === 'win32') app.setAppUserModelId('com.mineflux.downloader')
   registerIpc()
   mainWindow = createWindow()
   mainWindow.on('closed', () => {
