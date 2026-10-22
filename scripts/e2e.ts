@@ -1,8 +1,8 @@
 /**
  * 端到端测试脚本（不依赖 Electron）：
- *   npm run e2e -- plan 1.8.9       查看下载清单与体积
- *   npm run e2e -- install 1.8.9    真实下载到 %TEMP%/mcdl-e2e/1.8.9
- *   npm run e2e -- verify 1.8.9     全量校验已下载文件
+ *   yarn run e2e -- plan 1.8.9       查看下载清单与体积
+ *   yarn run e2e -- install 1.8.9    真实下载到 %TEMP%/mcdl-e2e/1.8.9
+ *   yarn run e2e -- verify 1.8.9     全量校验已下载文件
  */
 import os from 'node:os'
 import path from 'node:path'

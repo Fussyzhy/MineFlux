@@ -1,6 +1,6 @@
 /**
  * 详细配置页的规则测试（纯函数，不依赖 Electron / 网络）：
- *   npm run test:ui
+ *   yarn test:ui
  *
  * 覆盖 PCL 的互斥规则：Forge / NeoForge / Fabric / Quilt 互斥，
  * OptiFine 在 1.13~1.14.3 与 Forge 不兼容、1.20.5+ 与 Fabric 不兼容，

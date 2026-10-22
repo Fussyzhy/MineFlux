@@ -103,32 +103,34 @@ RAR 不支持，会给出明确提示。
 
 ## 快速开始
 
+本项目使用 **Yarn 1（Classic）** 管理依赖，锁文件只有 `yarn.lock` 一份，请勿混用 npm（会生成第二份锁文件）。
+
 ```bash
-npm install
+yarn install
 
 # 开发模式（Vite HMR + Electron）
-npm run dev
+yarn dev
 
 # 生产构建并启动
-npm start
+yarn start
 
 # 仅构建
-npm run build
+yarn build
 
 # 类型检查
-npm run typecheck
+yarn typecheck
 ```
 
 ### 冒烟测试（无需人工点击）
 
 ```bash
-npm run smoke
+yarn smoke
 ```
 
 会启动应用（冒烟期间窗口短暂显示但不抢焦点），加载完成后逐页截图到 `smoke.png`（下载 / 原版游戏）、`smoke-config.png`（详细配置）、`smoke-modpack.png`（整合包）、`smoke-instances.png`（实例管理）、`smoke-tasks.png`（任务）、`smoke-settings.png`（设置）、`smoke-about.png`（关于），并把界面文本导出到 `smoke.txt`。
 
 ```bash
-npm run smoke:install
+yarn smoke:install
 ```
 
 在冒烟测试的基础上，通过真实的 **渲染进程 → IPC → 下载核心** 链路完整安装一个 1.5.2 版本（约 52 MB）到临时目录，结束后再逐页截图并输出统计。仓库里的 `docs/screenshot*.png` 都来自这次运行。
@@ -137,23 +139,23 @@ npm run smoke:install
 
 ```bash
 # 查看某版本的下载清单与体积
-npm run e2e -- plan 1.8.9
+yarn run e2e -- plan 1.8.9
 
 # 真实下载到 %TEMP%/mcdl-e2e/1.8.9
-npm run e2e -- install 1.8.9
+yarn run e2e -- install 1.8.9
 
 # 全量 SHA1 复验
-npm run e2e -- verify 1.8.9
+yarn run e2e -- verify 1.8.9
 
 # 暂停 / 继续 / 重复安装跳过 / 取消 的流程测试
-npm run e2e -- stress 1.5.2
+yarn run e2e -- stress 1.5.2
 
 # 加载器 / 实例 / 整合包 功能验证（Fabric 合并、旧版 Forge 解包、
 # OptiFine 免 Java 安装、LiteLoader、多格式整合包、完整实例安装）
-npm run e2e:features
+yarn run e2e:features
 
 # 详细配置页的互斥 / 自动组件 / 默认实例名规则（纯函数，无需网络）
-npm run test:ui
+yarn run test:ui
 ```
 
 可用环境变量：`MCDL_MODE=auto|official|mirror`、`MCDL_CONCURRENCY=24`。

@@ -1,6 +1,6 @@
 /**
  * 下载引擎单测：只下载 1.8.9 的 assets，用于定位卡死/吞吐问题。
- *   npx esbuild scripts/engine-test.ts --bundle --platform=node --format=esm --outfile=.tmp/engine-test.mjs
+ *   yarn esbuild scripts/engine-test.ts --bundle --platform=node --format=esm --outfile=.tmp/engine-test.mjs
  *   node .tmp/engine-test.mjs
  */
 import fsp from 'node:fs/promises'

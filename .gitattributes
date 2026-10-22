@@ -1,0 +1,9 @@
+# 统一换行：仓库内一律存 LF，检出时不转换，
+# 避免 Windows 环境把整个工作区变成 CRLF 噪音。
+* text=auto eol=lf
+
+# 二进制资源不做换行/文本处理
+*.png binary
+*.ico binary
+*.jar binary
+*.zip binary

@@ -1,6 +1,6 @@
 /**
  * 加载器 / 实例 / 整合包 功能验证（不依赖 Electron）：
- *   npm run e2e:features
+ *   yarn e2e:features
  *
  * 覆盖：
  *   1. inheritsFrom 合并与实例 JSON 规范化
