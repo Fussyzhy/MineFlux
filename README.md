@@ -1,15 +1,52 @@
-# MineFlux
+<p align="center">
+  <img src="docs/logo.png" width="120" alt="MineFlux" />
+</p>
 
-MineFlux 是一个**独立的、只做下载与安装**的 Minecraft 客户端安装工具，使用 **TypeScript + Electron + React** 从零实现。
+<h1 align="center">MineFlux</h1>
 
-它的并发下载引擎、镜像源改写规则、加载器安装流程、整合包识别逻辑等设计参考了开源启动器 PCL（Plain Craft Launcher 2）的下载模块，但代码为完全重写，不包含 PCL 的任何源码。
+<p align="center">
+  <b>独立的 Minecraft 下载 / 安装工具</b><br />
+  只做下载与安装，不做启动器
+</p>
+
+<p align="center">
+  <img alt="version" src="https://img.shields.io/badge/version-0.3.0-3B82F6?style=flat-square" />
+  <img alt="platform" src="https://img.shields.io/badge/platform-Windows-0078D6?style=flat-square&logo=windows&logoColor=white" />
+  <img alt="license" src="https://img.shields.io/badge/license-MIT-22C55E?style=flat-square" />
+  <img alt="runtime deps" src="https://img.shields.io/badge/runtime%20deps-2-6B7280?style=flat-square" />
+  <img alt="electron" src="https://img.shields.io/badge/Electron-33-47848F?style=flat-square&logo=electron&logoColor=white" />
+  <img alt="typescript" src="https://img.shields.io/badge/TypeScript-5.7-3178C6?style=flat-square&logo=typescript&logoColor=white" />
+  <img alt="react" src="https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=black" />
+</p>
+
+<p align="center">
+  <b>TypeScript</b> · <b>Electron</b> · <b>React</b> · <b>Vite</b> · <b>esbuild</b>
+</p>
+
+MineFlux 是一个**独立的、只做下载与安装**的 Minecraft 客户端安装工具。它的并发下载引擎、镜像源改写规则、加载器安装流程、整合包识别逻辑等设计参考了开源启动器 PCL（Plain Craft Launcher 2）的下载模块，但代码完全重写，不包含 PCL 的任何源码。
 
 > 第三方非官方工具，与 Mojang / Microsoft / PCL 均无关联。
 > 只从官方与公共镜像 CDN 实时拉取文件，**不内置、不转存任何游戏资源**，也**不提供启动、登录、正版验证**功能。
 
 > **改名说明**：0.3 起项目更名为 **MineFlux**（原名 MC Downloader / 包名 mcdownload）。旧实例里的安装清单 `mcdl-install.json` 与旧环境变量 `MCDL_*` 仍会被读取兼容。
 
-![界面截图](docs/screenshot.png)
+<p align="center">
+  <img src="docs/screenshot.png" width="880" alt="MineFlux 下载页" />
+</p>
+
+## 目录
+
+- [界面](#界面)
+- [技术栈](#技术栈)
+- [功能](#功能)
+- [快速开始](#快速开始)
+- [项目结构](#项目结构)
+- [安装流程](#安装流程)
+- [与 PCL 下载逻辑的对应关系](#与-pcl-下载逻辑的对应关系)
+- [数据来源](#数据来源)
+- [已知限制](#已知限制)
+- [合规与免责声明](#合规与免责声明)
+- [License](#license)
 
 ## 界面
 
@@ -29,6 +66,37 @@ MineFlux 是一个**独立的、只做下载与安装**的 Minecraft 客户端�
 | 详细配置 | 实例管理 | 设置 |
 |---|---|---|
 | ![详细配置](docs/screenshot-config.png) | ![实例管理](docs/screenshot-instances.png) | ![设置](docs/screenshot-settings.png) |
+
+## 技术栈
+
+<p>
+  <img alt="typescript" src="https://img.shields.io/badge/TypeScript-5.7-3178C6?style=flat-square&logo=typescript&logoColor=white" />
+  <img alt="electron" src="https://img.shields.io/badge/Electron-33-47848F?style=flat-square&logo=electron&logoColor=white" />
+  <img alt="react" src="https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=black" />
+  <img alt="vite" src="https://img.shields.io/badge/Vite-5-646CFF?style=flat-square&logo=vite&logoColor=white" />
+  <img alt="esbuild" src="https://img.shields.io/badge/esbuild-0.24-FFCF00?style=flat-square&logo=esbuild&logoColor=black" />
+  <img alt="node" src="https://img.shields.io/badge/Node.js-%E2%89%A520-339933?style=flat-square&logo=nodedotjs&logoColor=white" />
+</p>
+
+| 层 | 选型 | 说明 |
+|---|---|---|
+| 语言 | **TypeScript 5.7**（`strict`，双 tsconfig） | 主进程与渲染进程共用 `src/shared/types.ts` 的类型契约 |
+| 桌面壳 | **Electron 33** | 无边框窗口 + 自绘标题栏；`contextBridge` 暴露 `window.mineflux` |
+| 界面 | **React 18**（函数组件 + Hooks） | 不引入 UI 框架，样式全部手写 CSS |
+| 构建 | **Vite 5**（渲染进程） + **esbuild**（主进程 / 测试脚本） | 主进程打包为单文件 CJS，渲染产物 200 KB 级 |
+| 测试 | 自研 CLI 脚本（esbuild 打包后直接运行） | 下载核心 e2e、功能验证、UI 规则测试三套，不依赖测试框架 |
+| 运行时依赖 | **仅 `react` + `react-dom`** | HTTP、ZIP、maven 路径、SHA1 校验全部手写 |
+| 质量门 | `tsc --noEmit`（node + web 双项目） | 当前无 eslint / prettier 依赖 |
+| 目标平台 | **Windows**（主要验证） | 路径长度、文件锁、保留名等按 Windows 语义处理 |
+
+`src/core` 不依赖 Electron，可以脱离界面单独运行，因此下载引擎与整合包逻辑都能用脚本直接测：
+
+```text
+src/core       纯 Node：清单 / 下载清单 / 并发引擎 / 加载器 / 整合包 / 实例
+src/shared     零依赖 IPC 契约（主进程 ↔ 渲染进程）
+electron/      主进程 + preload 桥
+src/renderer   React 界面（标题栏 + 页面 + 组件）
+```
 
 ## 功能
 
@@ -105,7 +173,9 @@ RAR 不支持，会给出明确提示。
 
 ## 快速开始
 
-本项目使用 **Yarn 1（Classic）** 管理依赖，锁文件只有 `yarn.lock` 一份，请勿混用 npm（会生成第二份锁文件）。
+**环境要求**：Node.js ≥ 20、Yarn 1（Classic）、Windows（主要验证平台）。
+
+本项目使用 **Yarn 1（Classic）** 管理依赖，锁文件只有 `yarn.lock` 一份（`packageManager` 已固定版本），请勿混用 npm 以免生成第二份锁文件。
 
 ```bash
 yarn install
@@ -302,3 +372,10 @@ PCL 2.99.0.0 用单一开关 `RestrictMcDownload = True`（`Modules/ModSecret.vb
 ## License
 
 MIT（仅适用于本仓库自身代码；Minecraft 相关资源版权归 Mojang / Microsoft 所有）
+
+---
+
+<p align="center">
+  <img src="docs/logo.png" width="28" alt="MineFlux" />
+  <sub>MineFlux · 第三方非官方工具 · 仅下载与安装，不提供启动 / 登录 / 正版验证</sub>
+</p>
