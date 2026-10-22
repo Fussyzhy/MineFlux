@@ -121,6 +121,19 @@ export async function ensureDataDirs(base: string): Promise<void> {
   }
 }
 
+/** 原版版本 JSON 的主类；加载器实例会换成 KnotClient / BootstrapLauncher 等，据此区分基座与实例 */
+const VANILLA_MAIN_CLASSES = new Set(['net.minecraft.client.main.Main', 'net.minecraft.client.Minecraft'])
+
+/**
+ * 原版基座：安装加载器实例时下载的原版版本目录（例如 versions/26.3）。
+ * 特征是没有安装清单、没有 inheritsFrom、主类仍是原版主类。
+ * 它不是用户主动创建的实例，需要在列表里单独归类，否则会被误标成「外部实例」。
+ */
+function looksLikeVanillaBase(json: { inheritsFrom?: string; mainClass?: string }): boolean {
+  if (json.inheritsFrom) return false
+  return Boolean(json.mainClass && VANILLA_MAIN_CLASSES.has(json.mainClass))
+}
+
 /** 列出所有实例：优先用 mcdl-install.json，外部实例则靠版本 JSON 推断 */
 export async function listInstances(root: string): Promise<InstalledInstance[]> {
   const versionsDir = path.join(root, 'versions')
@@ -135,9 +148,12 @@ export async function listInstances(root: string): Promise<InstalledInstance[]> 
     if (!entry.isDirectory()) continue
     const name = entry.name
     const dir = instanceDir(root, name)
-    const json = await readJsonFile<{ id?: string; inheritsFrom?: string; type?: string }>(
-      instanceJsonPath(root, name),
-    )
+    const json = await readJsonFile<{
+      id?: string
+      inheritsFrom?: string
+      type?: string
+      mainClass?: string
+    }>(instanceJsonPath(root, name))
     if (!json) continue
     if (await isInstalling(root, name)) {
       result.push({
@@ -171,6 +187,7 @@ export async function listInstances(root: string): Promise<InstalledInstance[]> 
         mcVersion: json.inheritsFrom ?? json.id,
         components: {},
         managed: false,
+        base: looksLikeVanillaBase(json),
       })
     }
   }

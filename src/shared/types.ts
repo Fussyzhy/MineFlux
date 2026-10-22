@@ -221,6 +221,12 @@ export interface InstalledInstance {
   totalBytes?: number
   /** 是否正在安装（存在 .pclignore） */
   installing?: boolean
+  /**
+   * 原版基座：没有安装清单、且版本 JSON 的主类仍是原版主类，
+   * 通常是安装加载器实例时下载的原版版本目录（如 versions/26.3）。
+   * 它不是用户主动创建的实例，实例列表里单独归类、默认隐藏。
+   */
+  base?: boolean
 }
 
 export type WindowAction = 'minimize' | 'maximize' | 'close'

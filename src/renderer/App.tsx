@@ -233,6 +233,9 @@ export default function App() {
   }, [installed])
 
   const installedNames = useMemo(() => installed.map((item) => item.name), [installed])
+  /** 原版基座不算「实例」，界面上单独统计 */
+  const instanceCount = useMemo(() => installed.filter((item) => !item.base).length, [installed])
+  const baseCount = useMemo(() => installed.filter((item) => item.base).length, [installed])
 
   const busy = task?.state === 'running' || task?.state === 'paused'
 
@@ -437,7 +440,8 @@ export default function App() {
             selected={selected}
             onSelect={(version) => setSelectedId(version.id)}
             installedByVersion={installedByVersion}
-            installedCount={installed.length}
+            installedCount={instanceCount}
+            baseCount={baseCount}
             javaReport={javaReport}
             busy={busy}
             task={task}

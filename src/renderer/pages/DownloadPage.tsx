@@ -43,12 +43,20 @@ const TYPE_LABEL: Record<string, string> = {
 interface RootCardProps {
   settings: Settings
   installedCount: number
+  baseCount: number
   javaReport: JavaReport | null
   onPickFolder: () => void
   onOpen: () => void
 }
 
-function RootCard({ settings, installedCount, javaReport, onPickFolder, onOpen }: RootCardProps) {
+function RootCard({
+  settings,
+  installedCount,
+  baseCount,
+  javaReport,
+  onPickFolder,
+  onOpen,
+}: RootCardProps) {
   return (
     <div className="card target-card">
       <div className="field-label">安装目录</div>
@@ -63,7 +71,10 @@ function RootCard({ settings, installedCount, javaReport, onPickFolder, onOpen }
         <button className="btn btn-sm" disabled={!settings.root} onClick={onOpen}>
           打开
         </button>
-        <span className="muted small">已安装 {installedCount} 个实例</span>
+        <span className="muted small">
+          已安装 {installedCount} 个实例
+          {baseCount > 0 ? ` · ${baseCount} 个原版基座` : ''}
+        </span>
         <span
           className={`java-badge ${javaReport && javaReport.found === 0 ? 'java-badge-warn' : ''}`}
           title={
@@ -97,6 +108,7 @@ interface Props {
   onSelect: (version: VersionSummary) => void
   installedByVersion: Map<string, InstalledInstance[]>
   installedCount: number
+  baseCount: number
   javaReport: JavaReport | null
   busy: boolean
   task: TaskSnapshot | null
@@ -123,6 +135,7 @@ export function DownloadPage({
   onSelect,
   installedByVersion,
   installedCount,
+  baseCount,
   javaReport,
   busy,
   task,
@@ -133,7 +146,10 @@ export function DownloadPage({
   onOpenTasks,
   modpack,
 }: Props) {
-  const installedList = selected ? (installedByVersion.get(selected.id) ?? []) : []
+  const allForVersion = selected ? (installedByVersion.get(selected.id) ?? []) : []
+  /** 原版基座不算实例，版本详情里单独提示 */
+  const installedList = allForVersion.filter((item) => !item.base)
+  const hasBase = allForVersion.some((item) => item.base)
 
   return (
     <div className="page">
@@ -189,7 +205,7 @@ export function DownloadPage({
               <div className="download-col">
                 <RootCard
                   settings={settings}
-                  installedCount={installedCount}
+                  installedCount={installedCount} baseCount={baseCount}
                   javaReport={javaReport}
                   onPickFolder={onPickFolder}
                   onOpen={onOpenRoot}
@@ -224,6 +240,9 @@ export function DownloadPage({
                           已安装 {installedList.length} 个实例
                         </span>
                       )}
+                      {installedList.length === 0 && hasBase && (
+                        <span className="badge badge-snapshot">已下载原版基座</span>
+                      )}
                     </div>
                     <div className="settings-desc">
                       下一步进入「详细配置」，选择 Forge / NeoForge / Fabric 等加载器与
@@ -242,7 +261,9 @@ export function DownloadPage({
                       <span className="muted small">
                         {installedList.length > 0
                           ? `同名实例：${installedList.map((item) => item.name).join('、')}`
-                          : '尚未安装该版本'}
+                          : hasBase
+                            ? '已下载原版基座（加载器实例依赖它，不是独立实例）'
+                            : '尚未安装该版本'}
                       </span>
                     </div>
                   </div>
@@ -274,7 +295,7 @@ export function DownloadPage({
               <div className="download-col scroll">
                 <RootCard
                   settings={settings}
-                  installedCount={installedCount}
+                  installedCount={installedCount} baseCount={baseCount}
                   javaReport={javaReport}
                   onPickFolder={onPickFolder}
                   onOpen={onOpenRoot}
