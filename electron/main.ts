@@ -41,25 +41,6 @@ function appIconPath(): string | undefined {
   return fs.existsSync(candidate) ? candidate : undefined
 }
 
-/**
- * 0.3 起应用改名为 MineFlux，userData 目录随之从 mcdownload 变成 MineFlux。
- * 首次启动时把旧设置复制过来，避免用户丢失安装目录与 CurseForge Key 配置。
- */
-function migrateLegacyUserData(): void {
-  const target = app.getPath('userData')
-  const targetFile = path.join(target, 'settings.json')
-  if (fs.existsSync(targetFile)) return
-  const legacyFile = path.join(app.getPath('appData'), 'mcdownload', 'settings.json')
-  if (!fs.existsSync(legacyFile)) return
-  try {
-    fs.mkdirSync(target, { recursive: true })
-    fs.copyFileSync(legacyFile, targetFile)
-    console.log('[mineflux] 已从旧目录迁移 settings.json')
-  } catch (error) {
-    console.error('[mineflux] 迁移旧设置失败', error)
-  }
-}
-
 function defaultRoot(): string {
   const mc = path.join(app.getPath('appData'), '.minecraft')
   if (fs.existsSync(path.join(mc, 'versions'))) return mc
@@ -73,8 +54,7 @@ function defaultSettings(): Settings {
     concurrency: 24,
     verifyHashes: true,
     isolation: true,
-    curseforgeApiKey:
-      process.env.MINEFLUX_CURSEFORGE_API_KEY ?? process.env.MCDL_CURSEFORGE_API_KEY ?? '',
+    curseforgeApiKey: process.env.MINEFLUX_CURSEFORGE_API_KEY ?? '',
   }
 }
 
@@ -461,7 +441,6 @@ async function runSmoke(window: BrowserWindow): Promise<void> {
 if (isSmoke) app.disableHardwareAcceleration()
 
 app.whenReady().then(async () => {
-  migrateLegacyUserData()
   if (process.platform === 'win32') app.setAppUserModelId('com.mineflux.downloader')
   registerIpc()
   mainWindow = createWindow()

@@ -28,8 +28,6 @@ function candidatePaths(): { file: string; source: string }[] {
   }
 
   push(process.env.MINEFLUX_JAVA_HOME, 'MINEFLUX_JAVA_HOME')
-  // 兼容 0.2.x 及更早版本使用的环境变量名
-  push(process.env.MCDL_JAVA_HOME, 'MCDL_JAVA_HOME')
   push(process.env.JAVA_HOME, 'JAVA_HOME')
 
   // PATH

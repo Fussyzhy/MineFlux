@@ -19,10 +19,7 @@ import {
   type RawVersion,
 } from '../src/core/version'
 
-/** 新环境变量名优先，兼容旧名 MCDL_* */
-const envValue = (name: string): string | undefined =>
-  process.env[`MINEFLUX_${name}`] ?? process.env[`MCDL_${name}`]
-const MODE = (envValue('MODE') as 'auto' | 'official' | 'mirror') ?? 'auto'
+const MODE = (process.env.MINEFLUX_MODE as 'auto' | 'official' | 'mirror') ?? 'auto'
 const [command, versionIdArg] = process.argv.slice(2)
 const versionId = versionIdArg ?? '1.21.4'
 const root = path.join(os.tmpdir(), 'mineflux-e2e', versionId)
@@ -99,9 +96,9 @@ async function main(): Promise<void> {
         versionUrl: version.url,
         versionSha1: version.sha1,
         root,
-        instanceName: envValue('INSTANCE') ?? version.id,
+        instanceName: process.env.MINEFLUX_INSTANCE ?? version.id,
         mode: MODE,
-        concurrency: Number(envValue('CONCURRENCY') ?? 24),
+        concurrency: Number(process.env.MINEFLUX_CONCURRENCY ?? 24),
         verifyHashes: true,
         manifestSource: manifest.source,
         isolation: true,

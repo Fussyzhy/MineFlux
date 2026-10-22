@@ -28,8 +28,6 @@ MineFlux 是一个**独立的、只做下载与安装**的 Minecraft 客户端�
 > 第三方非官方工具，与 Mojang / Microsoft / PCL 均无关联。
 > 只从官方与公共镜像 CDN 实时拉取文件，**不内置、不转存任何游戏资源**，也**不提供启动、登录、正版验证**功能。
 
-> **改名说明**：0.3 起项目更名为 **MineFlux**（原名 MC Downloader / 包名 mcdownload）。旧实例里的安装清单 `mcdl-install.json` 与旧环境变量 `MCDL_*` 仍会被读取兼容。
-
 <p align="center">
   <img src="docs/screenshot.png" width="880" alt="MineFlux 下载页" />
 </p>
@@ -168,8 +166,8 @@ RAR 不支持，会给出明确提示。
 
 - **下载源策略**：镜像优先（默认）/ 官方优先 / 仅镜像。自动模式下若发现镜像不可用，会自动切换到官方源。
 - **无边框窗口**：自绘标题栏与窗口控制按钮，标题栏可拖动，支持最大化 / 还原 / 最小化 / 关闭。
-- **Java 检测**：自动探测 `MINEFLUX_JAVA_HOME` / `JAVA_HOME` / PATH / 常见安装目录 / 官方启动器 runtime（旧名 `MCDL_JAVA_HOME` 仍兼容），用于判断哪些加载器可以安装。
-- **CurseForge API Key**：可在设置里填写，也支持 `MINEFLUX_CURSEFORGE_API_KEY` 环境变量（旧名 `MCDL_CURSEFORGE_API_KEY` 仍兼容）；留空时使用镜像接口。
+- **Java 检测**：自动探测 `MINEFLUX_JAVA_HOME` / `JAVA_HOME` / PATH / 常见安装目录 / 官方启动器 runtime，用于判断哪些加载器可以安装。
+- **CurseForge API Key**：可在设置里填写，也支持 `MINEFLUX_CURSEFORGE_API_KEY` 环境变量；留空时使用镜像接口。
 
 ## 快速开始
 
@@ -230,7 +228,7 @@ yarn run e2e:features
 yarn run test:ui
 ```
 
-可用环境变量：`MINEFLUX_MODE=auto|official|mirror`、`MINEFLUX_CONCURRENCY=24`（旧名 `MCDL_MODE` / `MCDL_CONCURRENCY` 仍兼容）。
+可用环境变量：`MINEFLUX_MODE=auto|official|mirror`、`MINEFLUX_CONCURRENCY=24`。
 
 ## 项目结构
 

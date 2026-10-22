@@ -430,7 +430,7 @@ async function resolveCurseForgeFiles(
     if (!apiKey) {
       log(
         'warn',
-        'CurseForge 整合包需要 API Key：请在设置里填写 CurseForge API Key（或设置环境变量 MINEFLUX_CURSEFORGE_API_KEY，旧名 MCDL_CURSEFORGE_API_KEY 仍可用）',
+        'CurseForge 整合包需要 API Key：请在设置里填写 CurseForge API Key（或设置环境变量 MINEFLUX_CURSEFORGE_API_KEY）',
       )
     }
     throw error
