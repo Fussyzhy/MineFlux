@@ -31,6 +31,7 @@ import { getTextFromSources } from '../src/core/http'
 import { metaUrls } from '../src/core/mirror'
 import { InstallTask } from '../src/core/install'
 import { dataDirOf, listInstances, readManifest } from '../src/core/instance'
+import type { InstallRequest } from '../src/shared/types'
 
 const MODE = 'official' as const
 const baseDir = path.join(os.tmpdir(), 'mineflux-features')
@@ -490,6 +491,56 @@ async function main(): Promise<void> {
     check(instance!.complete === true, 'listInstances complete 标记错误')
     check((instance!.fileCount ?? 0) > 0, 'listInstances fileCount 缺失')
     console.log(`      文件=${snapshot.doneFiles} 体积=${(snapshot.totalBytes / 1024 / 1024).toFixed(1)}MB`)
+  })
+
+  await test('取消 / 失败后清理 .pclignore，允许立即重装', async () => {
+    const manifest = await fetchVersionManifest(MODE)
+    const version = manifest.versions.find((item) => item.id === '1.5.2')
+    check(version, '版本清单里找不到 1.5.2')
+    const root = path.join(baseDir, 'marker')
+    await fsp.rm(root, { recursive: true, force: true })
+    const request: InstallRequest = {
+      kind: 'version',
+      versionId: version!.id,
+      versionUrl: version!.url,
+      versionSha1: version!.sha1,
+      root,
+      instanceName: '1.5.2',
+      mode: MODE,
+      concurrency: 8,
+      verifyHashes: true,
+      manifestSource: 'mojang',
+      isolation: true,
+    }
+    const marker = path.join(root, 'versions', '1.5.2', '.pclignore')
+    const markerExists = async (): Promise<boolean> =>
+      fsp.stat(marker).then(() => true).catch(() => false)
+    const hooks = { emitSnapshot: (): void => undefined, emitLog: (): void => undefined }
+
+    // A. 取消：标记必须被清理
+    const cancelTask = new InstallTask(request, hooks)
+    void cancelTask.start()
+    const cancelDeadline = Date.now() + 60_000
+    while (Date.now() < cancelDeadline && !(await markerExists())) {
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    }
+    check(await markerExists(), '安装开始后没有写出 .pclignore')
+    await cancelTask.cancelAndWait()
+    check(cancelTask.getSnapshot().state === 'canceled', '取消后状态不是 canceled')
+    check(!(await markerExists()), '取消后 .pclignore 未清理')
+
+    // B. 中途失败：标记同样必须被清理
+    const badTask = new InstallTask({ ...request, components: { forge: '0.0.0' } }, hooks)
+    await badTask.start()
+    check(badTask.getSnapshot().state === 'failed', '坏加载器版本没有按预期失败')
+    check(!(await markerExists()), '失败后 .pclignore 未清理')
+
+    // C. 取消 / 失败之后立即重装应当成功，而不是被「正在安装中」挡住
+    const retryTask = new InstallTask(request, hooks)
+    await retryTask.start()
+    const retried = retryTask.getSnapshot()
+    check(retried.state === 'finished', `重装没有成功：${retried.state} ${retried.failures[0]?.error ?? ''}`)
+    await fsp.rm(root, { recursive: true, force: true })
   })
 
   console.log('')

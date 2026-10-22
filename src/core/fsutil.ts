@@ -21,6 +21,24 @@ export async function writeJsonAtomic(file: string, value: unknown): Promise<voi
   await writeFileAtomic(file, JSON.stringify(value, null, 2))
 }
 
+/**
+ * 把一个「相对路径」安全地拼到基准目录下，拒绝绝对路径、盘符与 `..` 越界。
+ * 整合包清单与版本 JSON 里的路径都来自外部文件，必须经过这里才能落盘。
+ */
+export function safeJoin(baseDir: string, relative: string): string {
+  const base = path.resolve(baseDir)
+  const rel = String(relative ?? '').replace(/\\/g, '/').trim()
+  if (!rel) throw new Error('路径为空')
+  if (rel.startsWith('/') || /^[a-zA-Z]:/.test(rel) || rel.startsWith('//')) {
+    throw new Error(`不允许绝对路径：${relative}`)
+  }
+  const target = path.resolve(base, rel)
+  if (target !== base && !target.startsWith(base + path.sep)) {
+    throw new Error(`路径越界（必须位于 ${base} 内）：${relative}`)
+  }
+  return target
+}
+
 export async function readJsonFile<T = unknown>(file: string): Promise<T | null> {
   try {
     return JSON.parse(await fsp.readFile(file, 'utf8')) as T

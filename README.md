@@ -225,6 +225,9 @@ yarn run e2e:features
 
 # 详细配置页的互斥 / 自动组件 / 默认实例名规则（纯函数，无需网络）
 yarn run test:ui
+
+# 核心安全 / 完整性单元测试（路径越界、整合包清单穿越、zip-slip，离线）
+yarn run test:core
 ```
 
 可用环境变量：`MINEFLUX_MODE=auto|official|mirror`、`MINEFLUX_CONCURRENCY=24`。
@@ -269,6 +272,7 @@ scripts/
 ├─ e2e.ts                 # 下载核心端到端测试
 ├─ e2e-features.ts        # 加载器 / 实例 / 整合包功能测试
 ├─ test-ui.ts             # 详细配置页规则测试
+├─ test-core.ts           # 路径越界 / zip-slip / 整合包清单穿越测试
 └─ engine-test.ts         # 下载引擎单测
 ```
 

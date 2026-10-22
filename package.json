@@ -17,7 +17,8 @@
     "smoke:install": "yarn run build && node scripts/launch.mjs --smoke --smoke-install=1.5.2",
     "e2e": "esbuild scripts/e2e.ts --bundle --platform=node --format=esm --outfile=.tmp/e2e.mjs --log-level=warning && node .tmp/e2e.mjs",
     "e2e:features": "esbuild scripts/e2e-features.ts --bundle --platform=node --format=esm --outfile=.tmp/e2e-features.mjs --log-level=warning && node .tmp/e2e-features.mjs",
-    "test:ui": "esbuild scripts/test-ui.ts --bundle --platform=node --format=esm --outfile=.tmp/test-ui.mjs --log-level=warning && node .tmp/test-ui.mjs"
+    "test:ui": "esbuild scripts/test-ui.ts --bundle --platform=node --format=esm --outfile=.tmp/test-ui.mjs --log-level=warning && node .tmp/test-ui.mjs",
+    "test:core": "esbuild scripts/test-core.ts --bundle --platform=node --format=esm --outfile=.tmp/test-core.mjs --log-level=warning && node .tmp/test-core.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",

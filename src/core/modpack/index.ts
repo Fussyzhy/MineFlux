@@ -17,7 +17,7 @@ import {
   CURSEFORGE_MIRROR_API,
   CURSEFORGE_MIRROR_CDN,
 } from '../loaders/sources'
-import { ensureDir, writeJsonAtomic } from '../fsutil'
+import { ensureDir, safeJoin, writeJsonAtomic } from '../fsutil'
 import { readZipEntries, readZipEntry, extractZip, type ZipEntry, isZipFile } from '../zip'
 
 /** 待下载的整合包文件（路径相对于实例数据目录） */
@@ -481,7 +481,7 @@ export async function installModpack(
         if (item.env?.client === 'optional') optional++
         const sha1 = item.hashes?.sha1?.toLowerCase()
         downloads.push({
-          relativePath: item.path,
+          relativePath: checkedRelativePath(ctx.dataDir, item.path),
           urls: item.downloads ?? [],
           sha1,
           size: item.size ?? -1,
@@ -513,8 +513,9 @@ export async function installModpack(
         const urls: string[] = []
         if (meta.downloadUrl) urls.push(meta.downloadUrl)
         urls.push(curseForgeCdn(fileId, meta.fileName), curseForgeMirrorCdn(fileId, meta.fileName))
+        const rel = checkedRelativePath(ctx.dataDir, `mods/${meta.fileName}`)
         downloads.push({
-          relativePath: `mods/${meta.fileName}`,
+          relativePath: rel,
           urls,
           sha1,
           size: meta.fileLength ?? -1,
@@ -581,11 +582,23 @@ export async function installModpack(
   return { downloads, warnings, extracted }
 }
 
+/** 清单里的相对路径不可信：先确认它落在数据目录内，再返回规范化后的写法 */
+function checkedRelativePath(baseDir: string, relative: string): string {
+  try {
+    safeJoin(baseDir, relative)
+  } catch (error) {
+    throw new Error(
+      `整合包包含非法文件路径，已中止安装：${relative}（${error instanceof Error ? error.message : String(error)}）`,
+    )
+  }
+  return relative.replace(/\\/g, '/')
+}
+
 /** 供界面展示：解压出来的目录需要确保存在 */
 export async function ensureModpackDirs(dataDir: string, downloads: ModpackDownload[]): Promise<void> {
   await ensureDir(path.join(dataDir, 'mods'))
   for (const download of downloads) {
-    const dir = path.dirname(path.join(dataDir, download.relativePath))
+    const dir = path.dirname(safeJoin(dataDir, download.relativePath))
     await ensureDir(dir)
   }
 }

@@ -47,7 +47,7 @@ import {
   writeManifest,
 } from './instance'
 import { ensureModpackDirs, installModpack } from './modpack'
-import { writeFileAtomic } from './fsutil'
+import { safeJoin, writeFileAtomic } from './fsutil'
 
 /** 阶段顺序与展示名（对应 PCL 的安装 LoaderTask 列表） */
 const STAGE_ORDER: StageId[] = [
@@ -92,7 +92,11 @@ export class InstallTask {
 
   /** 已登记过的目标路径，避免重复计数 */
   private plannedDests = new Set<string>()
+  /** 登记路径 → 原始大小写路径，用于失败时给出可读文件名 */
+  private destLabels = new Map<string, string>()
   private completed = new Set<string>()
+  /** 本次任务是否已经写过 .pclignore（续跑时跳过「实例正在安装中」检查） */
+  private markerOwned = false
   private fileBytes = new Map<string, number>()
   private stageStats = new Map<StageId, StageStats>()
   private failures: FileFailure[] = []
@@ -178,16 +182,27 @@ export class InstallTask {
   }
 
   cancel(): void {
+    void this.cancelAndWait()
+  }
+
+  /**
+   * 取消并等待清理完成：清掉未完成的 .part、临时目录，以及「安装中」标记。
+   * 标记必须清掉，否则同名实例会被 isInstalling 挡住最长 2 小时无法重装/补全。
+   */
+  async cancelAndWait(): Promise<void> {
     if (this.state === 'finished' || this.state === 'canceled') return
     this.state = 'canceled'
     this.fetchAbort.abort()
     this.engine.abort()
     this.stopTicker()
     this.finishedAt = Date.now()
-    void DownloadEngine.cleanupParts(this.allFiles())
-    void fsp.rm(this.tempDir, { recursive: true, force: true })
     this.log('warn', '已取消下载（已完成分片保留，未完成的临时文件已清理）')
     this.emit()
+    await Promise.allSettled([
+      DownloadEngine.cleanupParts(this.allFiles()),
+      fsp.rm(this.tempDir, { recursive: true, force: true }),
+      this.releaseMarker(),
+    ])
   }
 
   retryFailed(): void {
@@ -260,6 +275,9 @@ export class InstallTask {
       })
       this.log('error', `任务失败：${errorText(error)}`)
       this.stopTicker()
+      // 失败也要释放「安装中」标记，否则用户修好问题后会被挡住 2 小时
+      await this.releaseMarker()
+      void fsp.rm(this.tempDir, { recursive: true, force: true })
       this.emit()
     } finally {
       this.advancing = false
@@ -344,7 +362,8 @@ export class InstallTask {
 
     // 实例检查：普通版本允许按「补全 / 修复」重复安装；整合包会覆盖用户文件，需要显式确认
     const name = this.instanceName
-    if (!this.retrying) {
+    // markerOwned：本任务自己写的 .pclignore（暂停后重新进入 init 阶段时不能把自己挡住）
+    if (!this.retrying && !this.markerOwned) {
       if (await isInstalling(root, name)) {
         throw new Error(`实例「${name}」正在安装中，请稍后再试`)
       }
@@ -357,6 +376,7 @@ export class InstallTask {
       }
     }
     await markInstalling(root, name)
+    this.markerOwned = true
     // 先落一份「未完成」清单：任务失败/取消后，实例页仍能认出这是本工具创建的实例、
     // 显示为未完整，并按清单还原隔离目录——不再让取消安装的残骸被当成「外部创建的实例」
     await writeManifest(root, name, {
@@ -605,7 +625,8 @@ export class InstallTask {
         await ensureModpackDirs(dataDir, result.downloads)
         const files = result.downloads.map<PlannedFile>((item) => ({
           kind: item.relativePath.replace(/\\/g, '/').startsWith('mods/') ? 'mod' : 'override',
-          dest: path.join(dataDir, item.relativePath),
+          // 清单来自整合包内部，relativePath 已由 installModpack 校验过，这里再兜一层
+          dest: safeJoin(dataDir, item.relativePath),
           urls: item.urls,
           size: item.size,
           sha1: item.sha1,
@@ -625,10 +646,16 @@ export class InstallTask {
   private async phaseExtract(): Promise<void> {
     const root = path.resolve(this.request.root)
     const name = this.instanceName
-    if (!this.retrying && fs.existsSync(path.join(root, 'versions', name)) && !this.request.overwrite) {
+    if (
+      !this.retrying &&
+      !this.markerOwned &&
+      fs.existsSync(path.join(root, 'versions', name)) &&
+      !this.request.overwrite
+    ) {
       throw new Error(`实例「${name}」已存在，请更换实例名称或勾选覆盖安装`)
     }
     await markInstalling(root, name)
+    this.markerOwned = true
     this.message = '解压整合包'
     this.emit()
     const info = this.request.modpack
@@ -655,6 +682,12 @@ export class InstallTask {
   // ------------------------------------------------------------------ 下载队列
 
   private async runQueue(queue: PlannedFile[], label: string): Promise<boolean> {
+    // 暂停后恢复：优先接着上次没下完的文件继续，不能依赖「重建队列」——
+    // registerFiles 会跳过已登记路径，重建出来的队列可能是空的，剩余文件会被静默丢掉
+    if (this.pendingQueue) {
+      queue = this.pendingQueue
+      this.pendingQueue = null
+    }
     if (!queue.length) return false
     this.message = label
     this.emit()
@@ -750,6 +783,22 @@ export class InstallTask {
   private finish(): void {
     this.stopTicker()
     this.finishedAt = Date.now()
+    // 兜底：登记过但从未完成的文件必须显式失败，不能静默把半成品标成「安装完成」。
+    // （例如恢复后某个阶段的队列被重建为空、文件被跳过的情况）
+    if (!this.failures.length && this.completed.size < this.plannedDests.size) {
+      const missing = [...this.plannedDests].filter((key) => !this.completed.has(key))
+      const preview = missing
+        .slice(0, 3)
+        .map((key) => this.destLabels.get(key) ?? key)
+        .join('、')
+      this.failures.push({
+        path: this.request.root,
+        kind: 'versionJson',
+        error: `有 ${missing.length} 个文件未下载完成：${preview}`,
+        urls: [],
+      })
+      this.log('error', `有 ${missing.length} 个文件未完成，任务按失败处理（可在实例页补全）`)
+    }
     this.state = this.failures.length ? 'failed' : 'finished'
     this.message = this.failures.length ? `${this.failures.length} 个文件失败` : '安装完成'
     if (this.state === 'finished') {
@@ -770,6 +819,8 @@ export class InstallTask {
       this.log('error', `${this.failures.length} 个文件下载失败，可在界面中重试`)
     }
     void fsp.rm(this.tempDir, { recursive: true, force: true })
+    // 成功路径已在 phaseInstance 清过标记；失败路径可能没走到，这里再兜一次
+    void this.releaseMarker()
     this.emit()
   }
 
@@ -784,12 +835,24 @@ export class InstallTask {
         : dataDirOf(root, this.instanceName, this.request.isolation ?? true)
   }
 
+  /** 释放「安装中」标记（幂等；清理失败不阻塞任务收尾） */
+  private async releaseMarker(): Promise<void> {
+    if (!this.markerOwned) return
+    this.markerOwned = false
+    try {
+      await unmarkInstalling(path.resolve(this.request.root), this.instanceName)
+    } catch {
+      // 忽略：下次安装时 isInstalling 的 2 小时过期逻辑会兜底
+    }
+  }
+
   private registerFiles(files: PlannedFile[]): PlannedFile[] {
     const added: PlannedFile[] = []
     for (const file of files) {
       const key = file.dest.toLowerCase()
       if (this.plannedDests.has(key)) continue
       this.plannedDests.add(key)
+      this.destLabels.set(key, file.dest)
       added.push(file)
       const stage = this.ensureStage(file.kind)
       stage.totalFiles++
@@ -876,6 +939,7 @@ export class InstallTask {
     this.fileBytes.clear()
     this.stageStats.clear()
     this.plannedDests.clear()
+    this.destLabels.clear()
     this.failures = []
     this.doneBytes = 0
     this.totalBytes = 0

@@ -202,7 +202,7 @@ function registerIpc(): void {
 
   ipcMain.handle('mineflux:pause', async () => requireTask().pause())
   ipcMain.handle('mineflux:resume', async () => requireTask().resume())
-  ipcMain.handle('mineflux:cancel', async () => requireTask().cancel())
+  ipcMain.handle('mineflux:cancel', async () => requireTask().cancelAndWait())
   ipcMain.handle('mineflux:retryFailed', async () => requireTask().retryFailed())
 
   ipcMain.handle('mineflux:chooseFolder', async () => {
@@ -462,6 +462,19 @@ app.whenReady().then(async () => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
+})
+
+// 安装过程中退出应用：先取消任务并等清理完成，避免留下 .pclignore 挡住下次安装
+let shuttingDown = false
+app.on('before-quit', (event) => {
+  if (shuttingDown) return
+  const task = activeTask
+  if (!task) return
+  const state = task.getSnapshot().state
+  if (state !== 'running' && state !== 'paused') return
+  event.preventDefault()
+  shuttingDown = true
+  void task.cancelAndWait().finally(() => app.quit())
 })
 
 
