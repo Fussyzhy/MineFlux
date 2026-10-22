@@ -4,6 +4,8 @@
   "version": "0.3.0",
   "private": true,
   "description": "MineFlux — standalone Minecraft version downloader with GUI (third-party, unofficial)",
+  "author": "MineFlux",
+  "license": "MIT",
   "packageManager": "yarn@1.22.22",
   "main": "dist-electron/main.js",
   "scripts": {
@@ -18,7 +20,10 @@
     "e2e": "esbuild scripts/e2e.ts --bundle --platform=node --format=esm --outfile=.tmp/e2e.mjs --log-level=warning && node .tmp/e2e.mjs",
     "e2e:features": "esbuild scripts/e2e-features.ts --bundle --platform=node --format=esm --outfile=.tmp/e2e-features.mjs --log-level=warning && node .tmp/e2e-features.mjs",
     "test:ui": "esbuild scripts/test-ui.ts --bundle --platform=node --format=esm --outfile=.tmp/test-ui.mjs --log-level=warning && node .tmp/test-ui.mjs",
-    "test:core": "esbuild scripts/test-core.ts --bundle --platform=node --format=esm --outfile=.tmp/test-core.mjs --log-level=warning && node .tmp/test-core.mjs"
+    "test:core": "esbuild scripts/test-core.ts --bundle --platform=node --format=esm --outfile=.tmp/test-core.mjs --log-level=warning && node .tmp/test-core.mjs",
+    "dist": "yarn run build && electron-builder --win",
+    "dist:win": "yarn run build && electron-builder --win nsis",
+    "dist:portable": "yarn run build && electron-builder --win portable"
   },
   "dependencies": {
     "react": "^18.3.1",
@@ -30,9 +35,45 @@
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
     "electron": "^33.3.1",
+    "electron-builder": "^26.15.3",
     "esbuild": "^0.24.2",
     "typescript": "^5.7.2",
     "vite": "^5.4.11"
+  },
+  "build": {
+    "appId": "com.mineflux.downloader",
+    "productName": "MineFlux",
+    "copyright": "Copyright © 2026 MineFlux",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**",
+      "dist-electron/**",
+      "build/icon.png",
+      "package.json",
+      "!node_modules/**"
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "MineFlux",
+      "artifactName": "MineFlux-Setup-${version}.exe"
+    },
+    "portable": {
+      "artifactName": "MineFlux-${version}-portable.exe"
+    }
   }
 }
-

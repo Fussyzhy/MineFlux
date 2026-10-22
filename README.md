@@ -27,6 +27,8 @@ MineFlux 是一个**独立的、只做下载与安装**的 Minecraft 客户端�
 
 > 第三方非官方工具，与 Mojang / Microsoft 均无关联。
 > 只从官方与公共镜像 CDN 实时拉取文件，**不内置、不转存任何游戏资源**，也**不提供启动、登录、正版验证**功能。
+>
+> 版本更新记录见 [CHANGELOG.md](CHANGELOG.md)。
 
 <p align="center">
   <img src="docs/screenshot.png" width="880" alt="MineFlux 下载页" />
@@ -81,6 +83,7 @@ MineFlux 是一个**独立的、只做下载与安装**的 Minecraft 客户端�
 | 桌面壳 | **Electron 33** | 无边框窗口 + 自绘标题栏；`contextBridge` 暴露 `window.mineflux` |
 | 界面 | **React 18**（函数组件 + Hooks） | 不引入 UI 框架，样式全部手写 CSS |
 | 构建 | **Vite 5**（渲染进程） + **esbuild**（主进程 / 测试脚本） | 主进程打包为单文件 CJS，渲染产物 200 KB 级 |
+| 打包 | **electron-builder 26**（NSIS 安装包 + portable 单文件） | 只打包 `dist/`、`dist-electron/` 与图标，不携带 `node_modules` |
 | 测试 | 自研 CLI 脚本（esbuild 打包后直接运行） | 下载核心 e2e、功能验证、UI 规则测试三套，不依赖测试框架 |
 | 运行时依赖 | **仅 `react` + `react-dom`** | HTTP、ZIP、maven 路径、SHA1 校验全部手写 |
 | 质量门 | `tsc --noEmit`（node + web 双项目） | 当前无 eslint / prettier 依赖 |
@@ -188,7 +191,17 @@ yarn build
 
 # 类型检查
 yarn typecheck
+
+# 打包成 Windows 安装包（NSIS，输出到 release/）
+yarn dist:win
+
+# 打包成免安装单文件 exe
+yarn dist:portable
 ```
+
+> 打包使用 **electron-builder**，首次执行会下载对应版本的 Electron 与 NSIS 工具（约 100 MB），之后会走缓存。
+> 安装包产物为 `release/MineFlux-Setup-<version>.exe`，免安装版为 `release/MineFlux-<version>-portable.exe`。
+> 应用只打包 `dist/`、`dist-electron/` 与 `build/icon.png`，不包含 `node_modules`（依赖已被 Vite / esbuild 打进产物），所以安装包体积主要来自 Electron 本体。
 
 ### 冒烟测试（无需人工点击）
 
