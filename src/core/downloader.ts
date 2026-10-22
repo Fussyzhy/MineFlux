@@ -4,7 +4,7 @@ import fsp from 'node:fs/promises'
 import path from 'node:path'
 import { Readable } from 'node:stream'
 import type { FileFailure } from '../shared/types'
-import { errorText, fetchOnce, isAbortError } from './http'
+import { errorText, fetchOnce } from './http'
 import type { PlannedFile } from './version'
 
 const RETRY_PER_SOURCE = 2
@@ -65,7 +65,12 @@ async function fileMatches(
     const stat = await fsp.stat(file.dest)
     if (!stat.isFile()) return false
     if (file.size >= 0 && stat.size !== file.size) return false
-    if (!file.sha1) return file.size >= 0 || stat.size > 0
+    if (!file.sha1) {
+      if (file.size >= 0) return true // 大小已知且已在上一条里精确吻合
+      // 既无 SHA1 又无大小声明的文件无法证明完整性：校验模式下按「缺失」处理，
+      // 强制重下；只有用户明确关闭哈希校验时才退化为「非空即存在」
+      return verifyHashes ? false : stat.size > 0
+    }
     if (!verifyHashes) return true
     return (await sha1File(file.dest)) === file.sha1
   } catch {
@@ -168,7 +173,9 @@ export class DownloadEngine {
           await this.finishFile(file)
           this.options.onFileDone(file)
         } catch (error) {
-          if (signal.aborted || isAbortError(error)) {
+          // 只有用户信号真正 abort 才算取消。请求超时（TimeoutError）必须走正常的
+          // 失败/重试/换源路径——否则文件被塞回队列、worker 提前退出，剩余文件被上层静默丢弃
+          if (signal.aborted) {
             queue.unshift(file)
             return
           }
@@ -207,7 +214,8 @@ export class DownloadEngine {
           this.markHostSuccess(url)
           return
         } catch (error) {
-          if (signal.aborted || isAbortError(error)) throw error
+          // 同 worker：只有用户中止才向上抛终止信号；超时错误交给下面的重试/换源逻辑
+          if (signal.aborted) throw error
           this.markHostFailure(url)
           if (error instanceof RangeUnsupportedError) {
             await fsp.rm(tmp, { force: true })
@@ -277,6 +285,16 @@ export class DownloadEngine {
           throw new Error('实际大小超过预期，文件可能来自错误的源')
         }
         this.options.onBytes(file, buffer.length)
+      }
+      // 无 SHA1 / 大小声明时的兜底校验：写入长度必须与 Content-Length 吻合，
+      // 防止镜像返回的截断响应被当成「下载成功」
+      if (file.size < 0 && !file.sha1) {
+        const contentLength = Number(res.headers?.get('content-length'))
+        if (Number.isFinite(contentLength) && contentLength > 0 && offset !== start + contentLength) {
+          throw new Error(
+            `下载长度与 Content-Length 不符（${offset}/${start + contentLength}），文件可能被截断`,
+          )
+        }
       }
     } finally {
       await handle.close().catch(() => undefined)

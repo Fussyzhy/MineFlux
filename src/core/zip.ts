@@ -30,11 +30,20 @@ export function readZipEntries(buffer: Buffer): ZipEntry[] {
   if (eocd < 0) throw new Error('不是有效的 ZIP 文件（未找到中央目录）')
   const total = buffer.readUInt16LE(eocd + 10)
   const cdOffset = buffer.readUInt32LE(eocd + 16)
+  if (total === 0xffff || cdOffset === 0xffffffff) {
+    throw new Error('暂不支持 ZIP64 格式（压缩包超过 4GB 或条目超过 65535 个），请重新打包为普通 ZIP')
+  }
   const entries: ZipEntry[] = []
   let pointer = cdOffset
   for (let index = 0; index < total; index++) {
-    if (pointer + 46 > buffer.length) break
-    if (buffer.readUInt32LE(pointer) !== CENTRAL_SIGNATURE) break
+    // 中央目录损坏必须明确报错。此前这里用 break 静默截断，损坏的包只解析出一部分
+    // 条目也会「解压成功」，产出半成品整合包并照常写 complete: true
+    if (pointer + 46 > buffer.length) {
+      throw new Error(`ZIP 中央目录损坏：解析到第 ${index + 1}/${total} 个条目时数据截断`)
+    }
+    if (buffer.readUInt32LE(pointer) !== CENTRAL_SIGNATURE) {
+      throw new Error(`ZIP 中央目录损坏：第 ${index + 1}/${total} 个条目签名非法`)
+    }
     const method = buffer.readUInt16LE(pointer + 10)
     const compressedSize = buffer.readUInt32LE(pointer + 20)
     const size = buffer.readUInt32LE(pointer + 24)
@@ -100,10 +109,14 @@ export async function extractZip(
   let count = 0
   for (const entry of entries) {
     if (entry.isDirectory) continue
-    if (options.prefix && !entry.name.startsWith(options.prefix)) continue
+    // 先统一分隔符、再按大小写不敏感匹配前缀——与 copyOverrides / detectModpackType
+    // 查条目的方式一致。此前预检用归一化小写名、这里却用原始名过滤：
+    // 用 “\” 分隔或大小写不同的 zip 会把全部 overrides 静默跳过，却照常报成功
+    const normalized = entry.name.replace(/\\/g, '/')
+    if (options.prefix && !normalized.toLowerCase().startsWith(options.prefix.toLowerCase())) continue
     if (options.filter && !options.filter(entry)) continue
-    let relative = entry.name.replace(/\\/g, '/')
-    if (options.stripPrefix && relative.startsWith(options.stripPrefix)) {
+    let relative = normalized
+    if (options.stripPrefix && relative.toLowerCase().startsWith(options.stripPrefix.toLowerCase())) {
       relative = relative.slice(options.stripPrefix.length)
     }
     if (!relative) continue

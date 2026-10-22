@@ -357,6 +357,20 @@ export class InstallTask {
       }
     }
     await markInstalling(root, name)
+    // 先落一份「未完成」清单：任务失败/取消后，实例页仍能认出这是本工具创建的实例、
+    // 显示为未完整，并按清单还原隔离目录——不再让取消安装的残骸被当成「外部创建的实例」
+    await writeManifest(root, name, {
+      schema: 1,
+      app: 'mcdownload',
+      instance: name,
+      mcVersion: raw.id,
+      components: this.request.components ?? {},
+      isolation: this.request.isolation,
+      installedAt: Date.now(),
+      fileCount: 0,
+      totalBytes: 0,
+      complete: false,
+    })
 
     // 基础阶段只准备原版文件
     this.basePlan = buildBasePlan({
@@ -645,11 +659,25 @@ export class InstallTask {
     this.message = label
     this.emit()
     const result = await this.engine.run(queue)
-    this.pendingQueue = result.remaining.length ? result.remaining : null
     this.absorbFailure(result)
-    if (result.aborted) return true
-    if (this.state !== 'running') return true
+    if (result.aborted || this.state !== 'running') {
+      this.pendingQueue = result.remaining.length ? result.remaining : null
+      return true
+    }
     this.pendingQueue = null
+    if (result.remaining.length) {
+      // 引擎只在暂停/取消时才会把文件留在 remaining 里；没有中止却还剩文件，
+      // 说明有文件没下完。逐个记为失败，绝不能静默丢弃再给该阶段打「完成」
+      for (const file of result.remaining) {
+        this.failures.push({
+          path: file.dest,
+          kind: file.kind,
+          error: '文件未下载完成（队列提前结束）',
+          urls: file.urls,
+        })
+      }
+      this.log('warn', `${result.remaining.length} 个文件未下载，已记录为失败`)
+    }
     this.log(
       'info',
       `${label}完成：跳过已存在 ${result.skipped.length} 个，失败 ${result.failed.length} 个`,
@@ -660,7 +688,14 @@ export class InstallTask {
   private async fetchOneFile(urls: string[], dest: string, minSize = 0): Promise<void> {
     const file: PlannedFile = { kind: 'loader', dest, urls, size: -1 }
     const queue = this.registerFiles([file])
-    if (!queue.length) return
+    if (!queue.length) {
+      // 暂停-继续 / 加载器阶段重跑后的再次进入：路径虽已在 plannedDests 登记过，
+      // 不代表文件真的落地。必须 stat 验证，缺失就重新入队下载——
+      // 此前这里直接 return 成功，导致 forge / optifine 安装器 jar 缺失后 ENOENT
+      const stat = await fsp.stat(dest).catch(() => null)
+      if (stat && stat.isFile() && (!minSize || stat.size >= minSize)) return
+      queue.push(file)
+    }
     this.message = `下载 ${path.basename(dest)}`
     this.emit()
     const result = await this.engine.run(queue)
@@ -885,7 +920,8 @@ export class InstallTask {
       installedAt: Date.now(),
       fileCount: this.totalFiles,
       totalBytes: this.totalBytes,
-      complete: true,
+      // 清单必须如实反映本轮失败状态，不能无条件把半成品标成 complete
+      complete: this.failures.length === 0,
     })
   }
 
