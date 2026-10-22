@@ -8,6 +8,7 @@ import os from 'node:os'
 import path from 'node:path'
 import fs from 'node:fs/promises'
 import { safeJoin } from '../src/core/fsutil'
+import { formatBytes, formatSpeed, percent } from '../src/renderer/lib/format'
 import { createZip } from '../src/core/zip'
 import { inspectModpack, installModpack, type ModpackInstallContext } from '../src/core/modpack'
 
@@ -56,6 +57,22 @@ await test('safeJoin 拒绝 ../ 与绝对路径', () => {
     }
     check(threw, `应拒绝路径：${bad}`)
   }
+})
+
+await test('进度格式化不会出现 undefined 单位', () => {
+  check(formatBytes(0.157) === '0 B', `亚字节应显示 0 B，实际：${formatBytes(0.157)}`)
+  check(formatBytes(0.9) === '0 B', `亚字节应显示 0 B，实际：${formatBytes(0.9)}`)
+  check(formatBytes(161) === '161 B', `161 字节显示错误：${formatBytes(161)}`)
+  check(formatBytes(1024) === '1.0 KB', `1024 字节显示错误：${formatBytes(1024)}`)
+  check(formatSpeed(0.157) === '0 B/s', `亚字节速度应显示 0 B/s，实际：${formatSpeed(0.157)}`)
+  check(formatSpeed(1.2) === '1 B/s', `1.2 B/s 显示错误：${formatSpeed(1.2)}`)
+  check(formatSpeed(161 * 1024) === '161 KB/s', `161 KB/s 显示错误：${formatSpeed(161 * 1024)}`)
+})
+
+await test('进度百分比始终限制在 0~100', () => {
+  check(percent(200, 100) === 100, `超出总量应封顶 100：${percent(200, 100)}`)
+  check(percent(50, 0) === 0, `总量为 0 时应为 0：${percent(50, 0)}`)
+  check(percent(-10, 100) === 0, `负数应夹到 0：${percent(-10, 100)}`)
 })
 
 await test('整合包清单里的穿越路径会在安装前被拒绝', async () => {

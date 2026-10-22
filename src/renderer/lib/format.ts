@@ -1,13 +1,18 @@
 export function formatBytes(bytes: number): string {
-  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B'
+  // 小于 1 字节按 0 展示，避免四舍五入成 “1 B” 或算出负的单位下标
+  if (!Number.isFinite(bytes) || bytes < 1) return '0 B'
   const units = ['B', 'KB', 'MB', 'GB', 'TB']
-  const index = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)))
+  const index = Math.min(
+    units.length - 1,
+    Math.max(0, Math.floor(Math.log(bytes) / Math.log(1024))),
+  )
   const value = bytes / 1024 ** index
   return `${value >= 100 || index === 0 ? value.toFixed(0) : value.toFixed(1)} ${units[index]}`
 }
 
 export function formatSpeed(bytesPerSecond: number): string {
-  if (!Number.isFinite(bytesPerSecond) || bytesPerSecond <= 0) return '0 B/s'
+  // 小于 1 B/s 的速度没有展示意义（平滑后的尾数），统一按 0 处理
+  if (!Number.isFinite(bytesPerSecond) || bytesPerSecond < 1) return '0 B/s'
   return `${formatBytes(bytesPerSecond)}/s`
 }
 

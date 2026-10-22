@@ -168,6 +168,7 @@ export class InstallTask {
     this.fetchAbort.abort()
     this.engine.abort()
     this.stopTicker()
+    this.speed = 0
     this.log('info', '已暂停')
     this.emit()
   }
@@ -195,6 +196,7 @@ export class InstallTask {
     this.fetchAbort.abort()
     this.engine.abort()
     this.stopTicker()
+    this.speed = 0
     this.finishedAt = Date.now()
     this.log('warn', '已取消下载（已完成分片保留，未完成的临时文件已清理）')
     this.emit()
@@ -228,6 +230,17 @@ export class InstallTask {
   }
 
   getSnapshot(): TaskSnapshot {
+    // 大小未知的文件（安装器、OptiFine-as-Mod）也会贡献 doneBytes，展示时按总量夹住，
+    // 避免出现「140 MB / 124 MB」这种进度超过 100% 的读数
+    const totalBytes = this.totalBytes
+    const doneBytes = totalBytes > 0 ? Math.min(this.doneBytes, totalBytes) : this.doneBytes
+    const stages = STAGE_ORDER.map((id) => this.stageStats.get(id))
+      .filter((stage): stage is StageStats => Boolean(stage))
+      .map((stage) => ({
+        ...stage,
+        doneBytes:
+          stage.totalBytes > 0 ? Math.min(stage.doneBytes, stage.totalBytes) : stage.doneBytes,
+      }))
     return {
       taskId: this.id,
       kind: this.request.kind,
@@ -236,15 +249,13 @@ export class InstallTask {
       root: this.request.root,
       state: this.state,
       message: this.message,
-      totalBytes: this.totalBytes,
-      doneBytes: this.doneBytes,
+      totalBytes,
+      doneBytes,
       totalFiles: this.totalFiles,
       doneFiles: this.doneFiles,
-      speed: this.speed,
+      speed: this.speed < 1 ? 0 : this.speed,
       etaSeconds: this.eta(),
-      stages: STAGE_ORDER.map((id) => this.stageStats.get(id)).filter(
-        (stage): stage is StageStats => Boolean(stage),
-      ),
+      stages,
       failures: this.failures,
       startedAt: this.startedAt,
       finishedAt: this.finishedAt,
@@ -275,6 +286,7 @@ export class InstallTask {
       })
       this.log('error', `任务失败：${errorText(error)}`)
       this.stopTicker()
+      this.speed = 0
       // 失败也要释放「安装中」标记，否则用户修好问题后会被挡住 2 小时
       await this.releaseMarker()
       void fsp.rm(this.tempDir, { recursive: true, force: true })
@@ -816,6 +828,7 @@ export class InstallTask {
         )}`,
       )
     } else {
+      this.speed = 0
       this.log('error', `${this.failures.length} 个文件下载失败，可在界面中重试`)
     }
     void fsp.rm(this.tempDir, { recursive: true, force: true })
@@ -888,11 +901,17 @@ export class InstallTask {
     const stage = this.ensureStage(file.kind)
     stage.doneFiles++
     const counted = this.fileBytes.get(file.dest) ?? 0
-    if (file.size > 0 && counted < file.size) {
-      const diff = file.size - counted
-      this.doneBytes += diff
-      this.stageBytes(file.kind, diff)
-      this.fileBytes.set(file.dest, file.size)
+    if (file.size > 0) {
+      if (counted < file.size) {
+        const diff = file.size - counted
+        this.doneBytes += diff
+        this.stageBytes(file.kind, diff)
+        this.fileBytes.set(file.dest, file.size)
+      }
+    } else if (counted > 0) {
+      // 大小未知的文件：完成时把实际收到的字节补进总量，保证 doneBytes 不会一直超过 totalBytes
+      stage.totalBytes += counted
+      this.totalBytes += counted
     }
   }
 
@@ -1009,6 +1028,8 @@ export class InstallTask {
     if (elapsed >= 0.2) {
       const instant = (this.doneBytes - this.lastSpeedBytes) / elapsed
       this.speed = this.speed === 0 ? instant : this.speed * 0.55 + instant * 0.45
+      // 平滑后的尾数会衰减成 0~1 之间的小数，展示层没有意义，直接归零
+      if (this.speed < 1) this.speed = 0
       this.lastSpeedAt = now
       this.lastSpeedBytes = this.doneBytes
     }
