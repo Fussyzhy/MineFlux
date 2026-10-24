@@ -1,202 +1,115 @@
 import type { ReactElement } from 'react'
+import {
+  AlertTriangle,
+  ArrowDownToLine,
+  ArrowLeft,
+  Blocks,
+  Box,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  Coffee,
+  Copy,
+  Download,
+  ExternalLink,
+  FileText,
+  Folder,
+  Info,
+  ListTodo,
+  Minus,
+  Package,
+  Pause,
+  Play,
+  RotateCw,
+  Search,
+  Settings,
+  ShieldCheck,
+  Square,
+  SquareStop,
+  Trash2,
+  X,
+  Zap,
+} from 'lucide-react'
 
-const base = {
-  width: 16,
-  height: 16,
-  viewBox: '0 0 24 24',
-  fill: 'none',
-  stroke: 'currentColor',
-  strokeWidth: 1.9,
-  strokeLinecap: 'round' as const,
-  strokeLinejoin: 'round' as const,
+/**
+ * 界面图标。
+ *
+ * 底层统一使用 lucide-react（https://lucide.dev），这里只是把项目里的
+ * 语义名映射到具体图标，并固化统一的尺寸 / 描边规范：
+ *  - 24×24 视口、线性描边、`currentColor` 着色
+ *  - 描边 1.9（lucide 默认 2，略微收细在 13~16px 下更精致）
+ *  - 实际显示尺寸由外层 CSS 控制（`.nav-item svg` 等）
+ *
+ * 需要新图标时直接从这里 lucide 列表里补充，不要再手写 SVG。
+ */
+const STROKE = 1.9
+
+type IconProps = { size?: number; strokeWidth?: number }
+
+function create(Icon: typeof Info, defaults?: IconProps) {
+  return function Wrapped(props: IconProps = {}): ReactElement {
+    return (
+      <Icon
+        size={props.size ?? 16}
+        strokeWidth={props.strokeWidth ?? defaults?.strokeWidth ?? STROKE}
+        aria-hidden="true"
+        focusable="false"
+      />
+    )
+  }
 }
 
-export function IconDownload(): ReactElement {
-  return (
-    <svg {...base}>
-      <path d="M12 3v12" />
-      <path d="m7 10 5 5 5-5" />
-      <path d="M5 21h14" />
-    </svg>
-  )
-}
+// ------------------------------------------------------------------ 基础操作
+export const IconDownload = create(Download)
+export const IconPause = create(Pause)
+export const IconPlay = create(Play)
+export const IconStop = create(SquareStop)
+export const IconRefresh = create(RotateCw)
+export const IconCheck = create(Check)
+export const IconAlert = create(AlertTriangle)
+export const IconTrash = create(Trash2)
+export const IconFolder = create(Folder)
+export const IconFile = create(FileText)
+export const IconSearch = create(Search)
+export const IconCopy = create(Copy)
+export const IconExternal = create(ExternalLink)
 
-export function IconPause(): ReactElement {
-  return (
-    <svg {...base}>
-      <rect x="7" y="5" width="3.5" height="14" rx="1" />
-      <rect x="13.5" y="5" width="3.5" height="14" rx="1" />
-    </svg>
-  )
-}
+// ------------------------------------------------------------------ 导航 / 页面语义
+/** 导航「下载」：原版游戏用方块阵列 */
+export const IconBlocks = create(Blocks)
+/** 整合包：包裹箱 */
+export const IconBox = create(Package)
+/** 实例管理：立方体 */
+export const IconInstance = create(Box)
+/** 任务：带勾选的清单，和「下载」的四宫格明显区分 */
+export const IconTasks = create(ListTodo)
+/** 设置：lucide 的齿轮，语义明确，不会被看成太阳 */
+export const IconSettings = create(Settings)
+/** 关于 / 信息 */
+export const IconInfo = create(Info)
+/** 校验 / 完整性 */
+export const IconShield = create(ShieldCheck)
+/** Java 运行时（lucide 的咖啡杯是 Java 的通用象征） */
+export const IconJava = create(Coffee)
+/** 下载到本地 / 下载源 */
+export const IconDownloadSource = create(ArrowDownToLine)
+/** 快速 / 推荐 */
+export const IconBolt = create(Zap)
+/** 时间 */
+export const IconClock = create(Clock)
+/** 进度中 */
+export const IconProgress = create(RotateCw)
+/** 空状态 */
+export const IconEmpty = create(Package)
 
-export function IconPlay(): ReactElement {
-  return (
-    <svg {...base}>
-      <path d="M8 5.5v13l11-6.5z" />
-    </svg>
-  )
-}
-
-export function IconStop(): ReactElement {
-  return (
-    <svg {...base}>
-      <rect x="6" y="6" width="12" height="12" rx="2" />
-    </svg>
-  )
-}
-
-export function IconFolder(): ReactElement {
-  return (
-    <svg {...base}>
-      <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-    </svg>
-  )
-}
-
-export function IconSearch(): ReactElement {
-  return (
-    <svg {...base}>
-      <circle cx="11" cy="11" r="6" />
-      <path d="m20 20-4.2-4.2" />
-    </svg>
-  )
-}
-
-export function IconRefresh(): ReactElement {
-  return (
-    <svg {...base}>
-      <path d="M20 11a8 8 0 1 0-2.3 5.7" />
-      <path d="M20 4v7h-7" />
-    </svg>
-  )
-}
-
-export function IconCheck(): ReactElement {
-  return (
-    <svg {...base}>
-      <path d="m4 12 5 5L20 6" />
-    </svg>
-  )
-}
-
-export function IconAlert(): ReactElement {
-  return (
-    <svg {...base}>
-      <path d="M12 3 2.5 20h19z" />
-      <path d="M12 9v5" />
-      <path d="M12 17.5v.01" />
-    </svg>
-  )
-}
-
-export function IconInstance(): ReactElement {
-  return (
-    <svg {...base}>
-      <path d="M12 3 3 7.5v9L12 21l9-4.5v-9z" />
-      <path d="M3 7.5 12 12l9-4.5" />
-      <path d="M12 12v9" />
-    </svg>
-  )
-}
-
-export function IconTasks(): ReactElement {
-  return (
-    <svg {...base}>
-      <path d="M9 6h11" />
-      <path d="M9 12h11" />
-      <path d="M9 18h11" />
-      <circle cx="4.5" cy="6" r="1" />
-      <circle cx="4.5" cy="12" r="1" />
-      <circle cx="4.5" cy="18" r="1" />
-    </svg>
-  )
-}
-
-export function IconSettings(): ReactElement {
-  return (
-    <svg {...base}>
-      <circle cx="12" cy="12" r="3.2" />
-      <path d="M12 2.6v2.8M12 18.6v2.8M2.6 12h2.8M18.6 12h2.8M5.4 5.4l2 2M16.6 16.6l2 2M18.6 5.4l-2 2M7.4 16.6l-2 2" />
-    </svg>
-  )
-}
-
-export function IconInfo(): ReactElement {
-  return (
-    <svg {...base}>
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 11v5.5" />
-      <path d="M12 7.6v.01" />
-    </svg>
-  )
-}
-
-export function IconTrash(): ReactElement {
-  return (
-    <svg {...base}>
-      <path d="M4 7h16" />
-      <path d="M9 7V5h6v2" />
-      <path d="M6 7l1 13h10l1-13" />
-      <path d="M10 11v5M14 11v5" />
-    </svg>
-  )
-}
-
-export function IconMinus(): ReactElement {
-  return (
-    <svg {...base}>
-      <path d="M5 12h14" />
-    </svg>
-  )
-}
-
-export function IconSquare(): ReactElement {
-  return (
-    <svg {...base}>
-      <rect x="5.5" y="5.5" width="13" height="13" rx="1.6" />
-    </svg>
-  )
-}
-
-export function IconRestore(): ReactElement {
-  return (
-    <svg {...base}>
-      <rect x="4" y="8" width="12" height="12" rx="1.6" />
-      <path d="M8 4h10a2 2 0 0 1 2 2v10" />
-    </svg>
-  )
-}
-
-export function IconClose(): ReactElement {
-  return (
-    <svg {...base}>
-      <path d="M6 6l12 12M18 6 6 18" />
-    </svg>
-  )
-}
-
-export function IconArrowLeft(): ReactElement {
-  return (
-    <svg {...base}>
-      <path d="M19 12H5" />
-      <path d="m11 18-6-6 6-6" />
-    </svg>
-  )
-}
-
-export function IconChevronRight(): ReactElement {
-  return (
-    <svg {...base}>
-      <path d="m9 6 6 6-6 6" />
-    </svg>
-  )
-}
-
-export function IconChevronDown(): ReactElement {
-  return (
-    <svg {...base}>
-      <path d="m6 9 6 6 6-6" />
-    </svg>
-  )
-}
+// ------------------------------------------------------------------ 方向 / 窗口
+export const IconMinus = create(Minus)
+/** 最大化：单一方框（Windows 标题栏惯例） */
+export const IconSquare = create(Square)
+/** 还原：两个叠放的方框（Windows 标题栏惯例） */
+export const IconRestore = create(Copy)
+export const IconClose = create(X)
+export const IconArrowLeft = create(ArrowLeft)
+export const IconChevronRight = create(ChevronRight)
+export const IconChevronDown = create(ChevronDown)

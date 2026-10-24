@@ -135,7 +135,9 @@ export function InstancesPage({
         <div className="page-body">
           {!current ? (
             <div className="empty-page">
-              <IconInstance />
+              <div className="empty-art">
+                <IconInstance />
+              </div>
               <h2>还没有已安装的实例</h2>
               <p>在「下载」页选择版本与加载器，安装完成后会出现在这里。</p>
               {bases.length > 0 && (

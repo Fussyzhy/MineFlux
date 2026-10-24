@@ -1,28 +1,36 @@
 /* ==================================================================
-   MineFlux · 浅色极简主题（无卡片）
-   设计原则：纯白纸面 + 细分隔线排版，不用卡片、阴影与渐变；
-   仅用单一蓝色强调色，控件保持轻描边。
+   MineFlux · 现代卡片主题（PCL 风格）
+   设计原则：浅灰底 + 白色卡片，圆角与轻阴影建立层次；
+   单一蓝色强调色，状态用柔和底色区分；控件统一 8px 圆角。
    ================================================================== */
 
 :root {
-  --bg: #ffffff;
-  --surface: #f6f7f9;
-  --surface-2: #eef0f3;
-  --border: #e8eaee;
-  --border-strong: #d7dbe2;
-  --text: #23272f;
-  --text-dim: #5b6572;
-  --text-mute: #8b95a3;
+  --bg: #f3f5f8;
+  --surface: #ffffff;
+  --surface-2: #f7f8fa;
+  --surface-3: #eef1f5;
+  --border: #e5e8ee;
+  --border-strong: #d5dae2;
+  --text: #1c2430;
+  --text-dim: #58636f;
+  --text-mute: #8a949f;
   --accent: #2f6feb;
   --accent-hover: #255fd0;
   --accent-soft: #eaf1fe;
-  --ok: #1a7f37;
-  --ok-soft: #e9f6ee;
-  --warn: #946200;
-  --warn-soft: #fff5e0;
-  --danger: #cf222e;
-  --danger-soft: #fdecee;
-  --radius: 6px;
+  --accent-soft-2: #dce8fd;
+  --ok: #16803c;
+  --ok-soft: #e7f6ed;
+  --warn: #9a6400;
+  --warn-soft: #fff4e0;
+  --danger: #d0342c;
+  --danger-soft: #fdeceb;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --radius-sm: 6px;
+  /* 卡片阴影：极轻，只用来把白色卡片从浅灰底上「抬」起来 */
+  --shadow-card: 0 1px 2px rgba(23, 35, 50, 0.04), 0 1px 3px rgba(23, 35, 50, 0.03);
+  --shadow-card-hover: 0 2px 6px rgba(23, 35, 50, 0.07), 0 1px 2px rgba(23, 35, 50, 0.04);
+  --shadow-pop: 0 8px 24px rgba(23, 35, 50, 0.12);
   --font: 'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', system-ui, -apple-system, sans-serif;
   --mono: 'Cascadia Code', 'JetBrains Mono', Consolas, 'Courier New', monospace;
 }
@@ -57,25 +65,25 @@ textarea {
 }
 
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 11px;
+  height: 11px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #d9dde4;
+  background: #ccd3dd;
   border: 3px solid var(--bg);
   border-radius: 8px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #c6ccd5;
+  background: #b4bdc9;
 }
 
 /* ------------------------------------------------------------------ 应用外壳 */
 .app {
   display: grid;
-  grid-template-rows: 46px minmax(0, 1fr) 26px;
+  grid-template-rows: 52px minmax(0, 1fr) 28px;
   height: 100%;
   background: var(--bg);
 }
@@ -96,9 +104,9 @@ textarea {
 .titlebar {
   display: flex;
   align-items: center;
-  gap: 20px;
-  padding: 0 10px 0 16px;
-  background: var(--bg);
+  gap: 22px;
+  padding: 0 8px 0 16px;
+  background: var(--surface);
   border-bottom: 1px solid var(--border);
   -webkit-app-region: drag;
   user-select: none;
@@ -113,24 +121,25 @@ textarea {
 .brand {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 10px;
   flex: none;
 }
 
 .brand-logo {
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
+  width: 28px;
+  height: 28px;
   display: block;
   object-fit: contain;
   flex: none;
+  /* 新图标自带圆角底板，这里不再叠一层圆角，避免双重圆角 */
 }
 
 .brand-title {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 13.5px;
+  font-weight: 700;
   color: var(--text);
   line-height: 1.2;
+  letter-spacing: 0.01em;
 }
 
 .brand-sub {
@@ -150,9 +159,9 @@ textarea {
 .nav-item {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 30px;
-  padding: 0 11px;
+  gap: 7px;
+  height: 34px;
+  padding: 0 13px;
   border: 0;
   border-radius: var(--radius);
   background: transparent;
@@ -161,14 +170,16 @@ textarea {
   cursor: pointer;
   position: relative;
   white-space: nowrap;
+  transition: background 0.14s ease, color 0.14s ease;
 }
 
 .nav-item:hover {
-  background: var(--surface);
+  background: var(--surface-3);
   color: var(--text);
 }
 
 .nav-item.active {
+  background: var(--accent-soft);
   color: var(--accent);
   font-weight: 600;
 }
@@ -176,11 +187,11 @@ textarea {
 .nav-item.active::after {
   content: '';
   position: absolute;
-  left: 11px;
-  right: 11px;
-  bottom: -8px;
+  left: 13px;
+  right: 13px;
+  bottom: -9px;
   height: 2px;
-  border-radius: 2px;
+  border-radius: 2px 2px 0 0;
   background: var(--accent);
 }
 
@@ -195,10 +206,12 @@ textarea {
   border-radius: 50%;
   background: var(--accent);
   margin-left: 1px;
+  box-shadow: 0 0 0 2px var(--accent-soft);
 }
 
 .nav-dot.failed {
   background: var(--danger);
+  box-shadow: 0 0 0 2px var(--danger-soft);
 }
 
 .titlebar-right {
@@ -211,24 +224,28 @@ textarea {
 .titlebar-pill {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  height: 26px;
-  padding: 0 9px;
-  border: 0;
-  border-radius: var(--radius);
-  background: transparent;
-  color: var(--text-mute);
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-dim);
   font-size: 11.5px;
   cursor: pointer;
-  max-width: 200px;
+  max-width: 220px;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
 }
 
 .titlebar-pill:hover {
-  background: var(--surface);
+  background: var(--surface-3);
+  border-color: var(--border-strong);
   color: var(--text);
 }
 
 .titlebar-pill.warn {
+  background: var(--warn-soft);
+  border-color: #f2dfb4;
   color: var(--warn);
 }
 
@@ -245,19 +262,20 @@ textarea {
 }
 
 .win-btn {
-  width: 34px;
-  height: 30px;
+  width: 36px;
+  height: 32px;
   display: grid;
   place-items: center;
   border: 0;
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-dim);
   cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
 }
 
 .win-btn:hover {
-  background: var(--surface-2);
+  background: var(--surface-3);
   color: var(--text);
 }
 
@@ -284,7 +302,7 @@ textarea {
   align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
-  padding: 20px 24px 10px;
+  padding: 22px 28px 14px;
   flex: none;
 }
 
@@ -294,14 +312,15 @@ textarea {
 
 .page-title {
   margin: 0;
-  font-size: 20px;
-  font-weight: 600;
+  font-size: 21px;
+  font-weight: 700;
   color: var(--text);
   line-height: 1.2;
+  letter-spacing: -0.01em;
 }
 
 .page-sub {
-  margin-top: 4px;
+  margin-top: 5px;
   font-size: 12px;
   color: var(--text-mute);
 }
@@ -318,8 +337,9 @@ textarea {
 .page-body {
   display: flex;
   flex-direction: column;
+  gap: 14px;
   min-height: 0;
-  padding: 6px 24px 20px;
+  padding: 0 28px 24px;
   overflow: auto;
 }
 
@@ -340,48 +360,52 @@ textarea {
 
 /* 左侧子导航 */
 .side-nav {
-  width: 196px;
+  width: 210px;
   flex: none;
   display: flex;
   flex-direction: column;
-  gap: 1px;
-  padding: 6px 14px 16px 24px;
+  gap: 2px;
+  padding: 4px 12px 20px 20px;
   overflow: auto;
   border-right: 1px solid var(--border);
+  background: var(--surface);
 }
 
 .side-section {
-  margin: 14px 0 4px;
-  padding: 0 8px;
+  margin: 16px 0 6px;
+  padding: 0 10px;
   font-size: 10.5px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-mute);
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .side-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
   width: 100%;
-  min-height: 33px;
-  padding: 5px 8px;
+  min-height: 36px;
+  padding: 6px 10px;
   border: 0;
   border-radius: var(--radius);
   background: transparent;
   color: var(--text-dim);
   text-align: left;
   cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease;
 }
 
 .side-item:hover {
-  background: var(--surface);
+  background: var(--surface-3);
   color: var(--text);
 }
 
 .side-item.active {
   background: var(--accent-soft);
   color: var(--accent);
+  font-weight: 600;
 }
 
 .side-item.active .side-item-title {
@@ -389,9 +413,22 @@ textarea {
 }
 
 .side-item svg {
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
   flex: none;
+  color: var(--text-mute);
+}
+
+.side-item.active svg {
+  color: var(--accent);
+}
+
+.side-item:hover svg {
+  color: var(--text-dim);
+}
+
+.side-item.active:hover svg {
+  color: var(--accent);
 }
 
 .side-item-main {
@@ -417,29 +454,28 @@ textarea {
 }
 
 .side-empty {
-  padding: 10px 8px;
+  padding: 14px 12px;
+  margin: 4px 0;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
   font-size: 11.5px;
   color: var(--text-mute);
-  line-height: 1.7;
+  line-height: 1.75;
 }
 
-/* ------------------------------------------------------------------ 区块（代替卡片） */
+/* ------------------------------------------------------------------ 卡片 */
 .card {
   display: flex;
   flex-direction: column;
-  background: transparent;
-  border: 0;
-  border-top: 1px solid var(--border);
-  border-radius: 0;
-  padding: 18px 0;
-  box-shadow: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  box-shadow: var(--shadow-card);
   flex: none;
 }
 
-.card:first-child {
-  border-top: 0;
-  padding-top: 0;
-}
+/* 卡片之间已经用 page-body 的 gap 分隔，首个子项无需额外处理 */
 
 .card-title {
   font-size: 13px;
@@ -482,29 +518,40 @@ textarea {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: 31px;
-  padding: 0 13px;
+  height: 32px;
+  padding: 0 14px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
-  background: var(--bg);
+  background: var(--surface);
   color: var(--text);
   font-size: 12.5px;
+  font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
+  box-shadow: 0 1px 1px rgba(23, 35, 50, 0.03);
+  transition: background 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
 }
 
 .btn:hover:not(:disabled) {
-  background: var(--surface);
-  border-color: #c4cad3;
+  background: var(--surface-2);
+  border-color: #c3cad4;
+  box-shadow: 0 1px 2px rgba(23, 35, 50, 0.07);
 }
 
 .btn:active:not(:disabled) {
-  background: var(--surface-2);
+  background: var(--surface-3);
+  box-shadow: none;
 }
 
 .btn:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
+  box-shadow: none;
+}
+
+.btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-soft-2);
 }
 
 .btn svg {
@@ -516,32 +563,37 @@ textarea {
   border-color: var(--accent);
   background: var(--accent);
   color: #fff;
+  box-shadow: 0 1px 2px rgba(47, 111, 235, 0.30);
 }
 
 .btn-primary:hover:not(:disabled) {
   background: var(--accent-hover);
   border-color: var(--accent-hover);
+  box-shadow: 0 2px 6px rgba(47, 111, 235, 0.32);
 }
 
 .btn-primary:active:not(:disabled) {
   background: #1f55b8;
+  box-shadow: none;
 }
 
 .btn-ghost {
   border-color: transparent;
   background: transparent;
   color: var(--text-dim);
+  box-shadow: none;
 }
 
 .btn-ghost:hover:not(:disabled) {
-  background: var(--surface);
+  background: var(--surface-3);
   border-color: transparent;
   color: var(--text);
+  box-shadow: none;
 }
 
 .btn-sm {
-  height: 26px;
-  padding: 0 10px;
+  height: 28px;
+  padding: 0 11px;
   font-size: 12px;
 }
 
@@ -557,18 +609,20 @@ textarea {
   height: 30px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: var(--bg);
+  background: var(--surface);
   color: var(--text-dim);
   cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease;
 }
 
 .icon-btn:hover:not(:disabled) {
-  background: var(--surface);
+  background: var(--surface-3);
+  border-color: var(--border-strong);
   color: var(--text);
 }
 
 .icon-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: default;
 }
 
@@ -583,11 +637,18 @@ textarea {
 }
 
 .java-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface-3);
   font-size: 11px;
-  color: var(--text-mute);
+  color: var(--text-dim);
 }
 
 .java-badge-warn {
+  background: var(--warn-soft);
   color: var(--warn);
 }
 
@@ -613,22 +674,32 @@ textarea {
 
 .field select,
 .field input {
-  height: 30px;
-  padding: 0 9px;
+  height: 32px;
+  padding: 0 10px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
-  background: var(--bg);
+  background: var(--surface);
   color: var(--text);
   font-size: 12.5px;
   outline: none;
   min-width: 0;
   flex: 1;
+  transition: border-color 0.14s ease, box-shadow 0.14s ease;
+}
+
+.field select:hover,
+.field input:hover {
+  border-color: #c3cad4;
 }
 
 .field select:focus,
 .field input:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  box-shadow: 0 0 0 3px var(--accent-soft-2);
+}
+
+.field input::placeholder {
+  color: var(--text-mute);
 }
 
 .field-label {
@@ -671,30 +742,36 @@ textarea {
 }
 
 select {
-  height: 30px;
-  padding: 0 8px;
+  height: 32px;
+  padding: 0 10px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
-  background: var(--bg);
+  background: var(--surface);
   color: var(--text);
   font-size: 12.5px;
   outline: none;
+  transition: border-color 0.14s ease, box-shadow 0.14s ease;
+}
+
+select:hover {
+  border-color: #c3cad4;
 }
 
 select:focus {
   border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft-2);
 }
 
 /* 徽标 / 状态胶囊（小标签，不是容器） */
 .badge {
   display: inline-flex;
   align-items: center;
-  height: 19px;
-  padding: 0 6px;
-  border-radius: 4px;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 999px;
   border: 1px solid transparent;
   font-size: 10.5px;
-  font-weight: 500;
+  font-weight: 600;
   white-space: nowrap;
 }
 
@@ -727,11 +804,11 @@ select:focus {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  height: 21px;
-  padding: 0 7px;
-  border-radius: 4px;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 999px;
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
   white-space: nowrap;
 }
 
@@ -769,7 +846,7 @@ select:focus {
 .bar {
   height: 6px;
   border-radius: 999px;
-  background: var(--surface-2);
+  background: var(--surface-3);
   overflow: hidden;
 }
 
@@ -792,16 +869,17 @@ select:focus {
 .inline-hint {
   display: flex;
   align-items: flex-start;
-  gap: 7px;
-  padding: 2px 0 2px 10px;
-  border-left: 2px solid var(--border-strong);
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
   color: var(--text-dim);
   font-size: 11.5px;
   line-height: 1.65;
 }
 
 .inline-hint.warn {
-  border-left-color: #e0b74a;
+  background: var(--warn-soft);
   color: var(--warn);
 }
 
@@ -828,11 +906,13 @@ select:focus {
 .error-banner {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 0 8px 10px;
-  border-left: 2px solid var(--danger);
+  gap: 9px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  background: var(--danger-soft);
   color: var(--danger);
   font-size: 12px;
+  font-weight: 500;
 }
 
 .error-banner svg {
@@ -842,7 +922,7 @@ select:focus {
 }
 
 .error-banner.global {
-  margin: 8px 24px 0;
+  margin: 0 28px 12px;
   flex: none;
 }
 
@@ -854,7 +934,7 @@ select:focus {
 .download-grid {
   display: grid;
   grid-template-columns: minmax(340px, 392px) minmax(0, 1fr);
-  column-gap: 26px;
+  column-gap: 20px;
   flex: 1;
   min-height: 0;
 }
@@ -862,13 +942,13 @@ select:focus {
 .download-col {
   display: flex;
   flex-direction: column;
+  gap: 14px;
   min-height: 0;
   min-width: 0;
 }
 
 .download-col:first-child {
-  border-right: 1px solid var(--border);
-  padding-right: 26px;
+  padding-right: 0;
 }
 
 .download-col.scroll {
@@ -877,12 +957,12 @@ select:focus {
 }
 
 .source-select {
-  height: 26px;
+  height: 30px;
   font-size: 12px;
 }
 
 .target-card .row {
-  margin-top: 8px;
+  margin-top: 10px;
   flex-wrap: wrap;
 }
 
@@ -890,7 +970,8 @@ select:focus {
 .version-card {
   flex: 1;
   min-height: 0;
-  padding-bottom: 0;
+  overflow: hidden;
+  padding-bottom: 12px;
 }
 
 .search-box {
@@ -900,7 +981,7 @@ select:focus {
 
 .search-box svg {
   position: absolute;
-  left: 9px;
+  left: 10px;
   top: 50%;
   transform: translateY(-50%);
   width: 14px;
@@ -911,48 +992,59 @@ select:focus {
 
 .search-box input {
   width: 100%;
-  height: 31px;
-  padding: 0 10px 0 30px;
+  height: 34px;
+  padding: 0 11px 0 32px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
-  background: var(--bg);
+  background: var(--surface);
   color: var(--text);
   font-size: 12.5px;
   outline: none;
+  transition: border-color 0.14s ease, box-shadow 0.14s ease;
+}
+
+.search-box input:hover {
+  border-color: #c3cad4;
 }
 
 .search-box input:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  box-shadow: 0 0 0 3px var(--accent-soft-2);
 }
 
 .chips {
   display: flex;
-  gap: 2px;
-  margin: 8px 0 4px;
+  gap: 3px;
+  margin: 10px 0 6px;
   flex: none;
 }
 
 .chip {
-  height: 25px;
-  padding: 0 9px;
+  height: 27px;
+  padding: 0 11px;
   border: 0;
-  border-radius: var(--radius);
+  border-radius: 999px;
   background: transparent;
   color: var(--text-dim);
   font-size: 11.5px;
   cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease;
 }
 
 .chip:hover {
-  background: var(--surface);
+  background: var(--surface-3);
   color: var(--text);
 }
 
 .chip-active {
-  background: var(--accent-soft);
-  color: var(--accent);
+  background: var(--accent);
+  color: #fff;
   font-weight: 600;
+}
+
+.chip-active:hover {
+  background: var(--accent-hover);
+  color: #fff;
 }
 
 .version-list {
@@ -961,13 +1053,13 @@ select:focus {
   overflow: auto;
   display: flex;
   flex-direction: column;
-  gap: 0;
-  margin: 0 -8px;
-  padding: 0 8px;
+  gap: 1px;
+  margin: 0 -6px;
+  padding: 2px 6px;
 }
 
 .list-hint {
-  padding: 10px 0;
+  padding: 12px 4px;
   color: var(--text-mute);
   font-size: 11.5px;
 }
@@ -975,22 +1067,36 @@ select:focus {
 .version-row {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
   width: 100%;
-  padding: 6px 8px;
+  padding: 6px 9px;
   border: 0;
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text);
   text-align: left;
   cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+/* 版本号右侧的徽章组：整体靠右、内部紧凑，避免和日期抢宽度 */
+.version-row > .badge {
+  flex: none;
+}
+
+.version-row > .version-name {
+  margin-right: auto;
 }
 
 .version-row:hover {
-  background: var(--surface);
+  background: var(--surface-2);
 }
 
 .version-row-active {
+  background: var(--accent-soft);
+}
+
+.version-row-active:hover {
   background: var(--accent-soft);
 }
 
@@ -1002,8 +1108,8 @@ select:focus {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  flex: 1;
-  min-width: 0;
+  flex: 1 1 auto;
+  min-width: 64px;
 }
 
 .version-row-active .version-name {
@@ -1015,14 +1121,16 @@ select:focus {
   color: var(--text-mute);
   flex: none;
   font-variant-numeric: tabular-nums;
+  min-width: 62px;
+  text-align: right;
 }
 
 .version-footer {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 0;
-  margin-top: 4px;
+  padding: 10px 0 2px;
+  margin-top: 6px;
   border-top: 1px solid var(--border);
   color: var(--text-mute);
   font-size: 11px;
@@ -1243,12 +1351,12 @@ select:focus {
 }
 
 .card.task-empty {
-  padding: 40px 20px;
+  padding: 34px 20px;
 }
 
 .empty-art {
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   display: grid;
   place-items: center;
@@ -1257,14 +1365,14 @@ select:focus {
 }
 
 .empty-art svg {
-  width: 21px;
-  height: 21px;
+  width: 22px;
+  height: 22px;
 }
 
 .empty-title {
-  font-size: 14px;
+  font-size: 14.5px;
   font-weight: 600;
-  margin-top: 4px;
+  margin-top: 6px;
 }
 
 .empty-sub {
@@ -1427,10 +1535,10 @@ select:focus {
 }
 
 .log-card {
-  flex: 1;
-  min-height: 180px;
-  padding-bottom: 0;
-  gap: 8px;
+  flex: 2;
+  min-height: 220px;
+  padding-bottom: 16px;
+  gap: 10px;
 }
 
 .card-head {
@@ -1446,13 +1554,13 @@ select:focus {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 8px 10px;
+  padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: var(--surface);
+  background: var(--surface-2);
   font-family: var(--mono);
   font-size: 11.5px;
-  line-height: 1.65;
+  line-height: 1.7;
 }
 
 .log-line {
@@ -1579,31 +1687,44 @@ select:focus {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 10px;
   flex: 1;
-  padding: 40px 20px;
+  min-height: 320px;
+  padding: 48px 20px;
   color: var(--text-mute);
   text-align: center;
 }
 
-.empty-page svg {
-  width: 34px;
-  height: 34px;
+.empty-page .empty-art {
+  width: 56px;
+  height: 56px;
+  margin-bottom: 4px;
+}
+
+.empty-page .empty-art svg {
+  width: 26px;
+  height: 26px;
+  color: var(--accent);
+}
+
+.empty-page > svg {
+  width: 40px;
+  height: 40px;
   color: var(--border-strong);
 }
 
 .empty-page h2 {
-  margin: 4px 0 0;
+  margin: 2px 0 0;
   font-size: 15px;
   font-weight: 600;
   color: var(--text-dim);
 }
 
 .empty-page p {
-  margin: 0 0 6px;
+  margin: 0 0 8px;
   font-size: 12px;
   max-width: 420px;
-  line-height: 1.7;
+  line-height: 1.75;
 }
 
 /* ------------------------------------------------------------------ 设置 */
@@ -1754,23 +1875,23 @@ select:focus {
 
 .about-name {
   font-size: 17px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .about-tagline {
-  margin-top: 2px;
+  margin-top: 3px;
   color: var(--text-mute);
   font-size: 11.5px;
 }
 
 .about-card {
-  gap: 8px;
+  gap: 10px;
 }
 
 .about-card h3 {
   margin: 0;
   font-size: 12.5px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text);
 }
 
@@ -1815,8 +1936,8 @@ select:focus {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 0 16px;
-  background: #fafbfc;
+  padding: 0 18px;
+  background: var(--surface);
   border-top: 1px solid var(--border);
   color: var(--text-mute);
   font-size: 11px;
@@ -1869,14 +1990,15 @@ select:focus {
   min-height: 0;
   overflow: auto;
   align-items: center;
-  padding: 16px 24px 24px;
+  padding: 20px 28px 28px;
 }
 
 .config-inner {
   width: 100%;
-  max-width: 860px;
+  max-width: 880px;
   display: flex;
   flex-direction: column;
+  gap: 14px;
   flex: none;
 }
 
@@ -1885,6 +2007,11 @@ select:focus {
   align-items: center;
   gap: 10px;
   flex: none;
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
 }
 
 .config-back {
@@ -1895,13 +2022,14 @@ select:focus {
   place-items: center;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
-  background: var(--bg);
+  background: var(--surface);
   color: var(--text-dim);
   cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease;
 }
 
 .config-back:hover {
-  background: var(--surface);
+  background: var(--surface-3);
   color: var(--text);
 }
 
@@ -1911,12 +2039,12 @@ select:focus {
 }
 
 .config-mc-chip {
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   flex: none;
   display: grid;
   place-items: center;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: var(--accent-soft);
   color: var(--accent);
   font-size: 10px;
@@ -1930,15 +2058,17 @@ select:focus {
   padding: 0 12px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
-  background: var(--bg);
+  background: var(--surface);
   color: var(--text);
   font-size: 13px;
+  font-weight: 500;
   outline: none;
+  transition: border-color 0.14s ease, box-shadow 0.14s ease;
 }
 
 .config-name:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  box-shadow: 0 0 0 3px var(--accent-soft-2);
 }
 
 .config-isolation {
@@ -1947,20 +2077,24 @@ select:focus {
 }
 
 .config-head {
-  margin-top: 18px;
+  padding: 4px 2px 0;
   flex: none;
 }
 
 .config-title {
   margin: 0;
-  font-size: 19px;
-  font-weight: 600;
+  font-size: 21px;
+  font-weight: 700;
   line-height: 1.2;
+  letter-spacing: -0.01em;
 }
 
 .config-rows {
-  margin-top: 14px;
-  border-top: 1px solid var(--border);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
   flex: none;
 }
 
@@ -1968,25 +2102,28 @@ select:focus {
   border-bottom: 1px solid var(--border);
 }
 
+.config-row:last-child {
+  border-bottom: 0;
+}
+
 .config-row-head {
   display: flex;
   align-items: center;
   gap: 14px;
-  min-height: 46px;
-  padding: 0 10px;
-  margin: 0 -10px;
-  border-radius: var(--radius);
+  min-height: 48px;
+  padding: 0 14px;
   cursor: pointer;
   user-select: none;
   outline: none;
+  transition: background 0.12s ease;
 }
 
 .config-row-head:hover {
-  background: var(--surface);
+  background: var(--surface-2);
 }
 
 .config-row-head:focus-visible {
-  box-shadow: inset 0 0 0 1px var(--accent);
+  box-shadow: inset 0 0 0 2px var(--accent-soft-2);
 }
 
 .config-row.disabled .config-row-head {
@@ -2047,14 +2184,15 @@ select:focus {
   display: grid;
   place-items: center;
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-mute);
   cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
 }
 
 .row-clear:hover {
-  background: var(--surface-2);
+  background: var(--danger-soft);
   color: var(--danger);
 }
 
@@ -2087,7 +2225,8 @@ select:focus {
   gap: 1px;
   max-height: 238px;
   overflow: auto;
-  padding: 0 10px 12px 132px;
+  padding: 2px 14px 12px 136px;
+  background: var(--surface-2);
 }
 
 .config-version {
@@ -2096,23 +2235,24 @@ select:focus {
   gap: 8px;
   min-height: 30px;
   padding: 4px 8px;
-  margin: 0 -8px;
   border: 0;
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text);
   text-align: left;
   font-size: 12px;
   cursor: pointer;
+  transition: background 0.12s ease;
 }
 
 .config-version:hover {
-  background: var(--surface);
+  background: var(--surface-3);
 }
 
 .config-version.selected {
   background: var(--accent-soft);
   color: var(--accent);
+  font-weight: 600;
 }
 
 .config-version-label {
@@ -2145,7 +2285,6 @@ select:focus {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-top: 16px;
   flex: none;
 }
 
@@ -2153,15 +2292,13 @@ select:focus {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding-top: 18px;
-  margin-top: 18px;
-  border-top: 1px solid var(--border);
   flex: none;
 }
 
 .config-footer .btn-primary {
-  height: 34px;
-  padding: 0 20px;
+  height: 36px;
+  padding: 0 22px;
+  font-size: 13px;
   flex: none;
 }
 

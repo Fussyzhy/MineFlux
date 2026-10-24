@@ -17,7 +17,9 @@ import { SideNav } from '../components/SideNav'
 import { VersionList } from '../components/VersionList'
 import {
   IconAlert,
-  IconDownload,
+  IconBlocks,
+  IconBox,
+  IconChevronRight,
   IconFolder,
   IconRefresh,
 } from '../components/Icons'
@@ -29,8 +31,8 @@ const SOURCE_OPTIONS: Array<{ value: SourceMode; label: string }> = [
 ]
 
 const TABS = [
-  { id: 'version', label: '原版游戏', icon: <IconDownload /> },
-  { id: 'modpack', label: '整合包', icon: <IconFolder /> },
+  { id: 'version', label: '原版游戏', icon: <IconBlocks /> },
+  { id: 'modpack', label: '整合包', icon: <IconBox /> },
 ]
 
 const TYPE_LABEL: Record<string, string> = {
@@ -255,7 +257,7 @@ export function DownloadPage({
                         onClick={() => onConfigure(selected)}
                         data-install-config
                       >
-                        <IconDownload />
+                        <IconChevronRight />
                         {busy ? '安装进行中…' : '配置并安装'}
                       </button>
                       <span className="muted small">

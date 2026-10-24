@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { JavaProbeResult, JavaReport, Settings, SourceMode } from '../../shared/types'
 import type { SettingsTab } from '../lib/nav'
 import { shortPath } from '../lib/format'
-import { IconFolder, IconInfo, IconSettings } from '../components/Icons'
+import { IconBox, IconDownloadSource, IconFolder, IconJava } from '../components/Icons'
 import { JavaSettingsPanel } from '../components/JavaSettingsPanel'
 import { PageHeader } from '../components/PageHeader'
 import { SideNav } from '../components/SideNav'
@@ -22,9 +22,9 @@ const SOURCE_ROWS: Array<{ value: SourceMode; title: string; desc: string }> = [
 ]
 
 const TABS = [
-  { id: 'download', label: '下载', icon: <IconSettings /> },
-  { id: 'modpack', label: '整合包', icon: <IconFolder /> },
-  { id: 'java', label: 'Java', icon: <IconInfo /> },
+  { id: 'download', label: '下载', icon: <IconDownloadSource /> },
+  { id: 'modpack', label: '整合包', icon: <IconBox /> },
+  { id: 'java', label: 'Java', icon: <IconJava /> },
 ]
 
 interface Props {

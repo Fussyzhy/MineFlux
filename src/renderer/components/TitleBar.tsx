@@ -3,8 +3,8 @@ import type { JavaReport, TaskSnapshot, WindowAction } from '../../shared/types'
 import type { PageId } from '../lib/nav'
 import iconUrl from '../assets/mineflux.png'
 import {
+  IconBlocks,
   IconClose,
-  IconDownload,
   IconInfo,
   IconInstance,
   IconMinus,
@@ -24,7 +24,7 @@ interface Props {
 }
 
 const NAV: Array<{ id: PageId; label: string; icon: ReactElement }> = [
-  { id: 'download', label: '下载', icon: <IconDownload /> },
+  { id: 'download', label: '下载', icon: <IconBlocks /> },
   { id: 'instances', label: '实例管理', icon: <IconInstance /> },
   { id: 'tasks', label: '任务', icon: <IconTasks /> },
   { id: 'settings', label: '设置', icon: <IconSettings /> },
