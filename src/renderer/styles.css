@@ -1706,6 +1706,36 @@ select:focus {
   flex: none;
 }
 
+.java-item-tags {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
+.java-item-badge {
+  font-size: 10.5px;
+  line-height: 16px;
+  padding: 0 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  color: var(--text-mute);
+  flex: none;
+}
+
+.java-item-badge.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.java-path-field {
+  margin: 10px 0 10px;
+}
+
+.java-prefer {
+  margin-top: 10px;
+}
+
 /* ------------------------------------------------------------------ 关于 */
 .about-hero {
   align-items: center;

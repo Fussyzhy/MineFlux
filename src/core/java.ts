@@ -14,10 +14,82 @@ export interface JavaInfo {
   source: string
 }
 
+/** 手动配置的 Java（设置页里指定，安装器会优先使用它） */
+export interface ManualJavaSetting {
+  /** 用户填写的路径：java.exe 本身、JAVA_HOME 目录或 bin 目录都可以 */
+  path: string
+  /** 是否优先于自动检测的结果 */
+  prefer?: boolean
+}
+
 let cache: JavaInfo[] | null = null
+/** 手动指定的 Java：由主进程在启动与保存设置时注入，自动检测的第一优先级 */
+let manual: ManualJavaSetting | null = null
+/** 手动 Java 解析后的可执行文件（解析失败为空串） */
+let manualFile = ''
 
 function exeName(): string {
   return process.platform === 'win32' ? 'java.exe' : 'java'
+}
+
+/** 文件路径的规范形式：Windows 用真实大小写 + 反斜杠，便于和探测结果比较 */
+function normalizeFile(file: string): string {
+  const resolved = path.resolve(file)
+  try {
+    return path.normalize(fs.realpathSync.native(resolved))
+  } catch {
+    return path.normalize(resolved)
+  }
+}
+
+function sameFile(a: string, b: string): boolean {
+  if (!a || !b) return false
+  return normalizeFile(a).toLowerCase() === normalizeFile(b).toLowerCase()
+}
+
+/**
+ * 把手动配置的路径解析成 java 可执行文件。
+ * 支持三种写法：java.exe 本身、JDK/JRE 根目录（自动补 bin/java.exe）、bin 目录（自动补 java.exe）。
+ */
+export function resolveJavaExecutable(input: string): string {
+  const trimmed = input.trim().replace(/^"(.*)"$/, '$1')
+  if (!trimmed) return ''
+  let stat: fs.Stats | null = null
+  try {
+    stat = fs.statSync(trimmed)
+  } catch {
+    return ''
+  }
+  if (stat.isFile()) return trimmed
+  const direct = path.join(trimmed, exeName())
+  if (fs.existsSync(direct)) return direct
+  return path.join(trimmed, 'bin', exeName())
+}
+
+/** 注入 / 清除手动配置的 Java（主进程用）；设置变化时同时让检测缓存失效 */
+export function setManualJava(setting: ManualJavaSetting | null): void {
+  manual = setting && setting.path.trim() ? { path: setting.path, prefer: setting.prefer } : null
+  manualFile = manual ? resolveJavaExecutable(manual.path) : ''
+  cache = null
+}
+
+/** 手动配置的 Java 解析后的 java 可执行文件（路径无效时为空串） */
+export function getManualJavaFile(): string {
+  return manualFile
+}
+
+/** 某个探测结果是否就是手动配置的那个 java.exe */
+export function isManualJava(file: string): boolean {
+  return sameFile(file, manualFile)
+}
+
+export function getManualJava(): ManualJavaSetting | null {
+  return manual
+}
+
+/** 是否配置了「始终优先使用手动 Java」 */
+export function prefersManualJava(): boolean {
+  return Boolean(manual?.prefer)
 }
 
 function candidatePaths(): { file: string; source: string }[] {
@@ -26,6 +98,9 @@ function candidatePaths(): { file: string; source: string }[] {
     if (!dir) return
     result.push({ file: path.join(dir, 'bin', exeName()), source })
   }
+
+  // 手动配置的 Java 排在第一位：detectJava 的返回顺序即 pickJava 的选择顺序
+  if (manualFile) result.push({ file: manualFile, source: '手动配置' })
 
   push(process.env.MINEFLUX_JAVA_HOME, 'MINEFLUX_JAVA_HOME')
   push(process.env.JAVA_HOME, 'JAVA_HOME')
@@ -126,27 +201,62 @@ export function parseMajor(version: string): number {
   return Number(version.split('.')[0]) || 0
 }
 
-/** 扫描本机所有可用 Java（结果会缓存） */
-export async function detectJava(): Promise<JavaInfo[]> {
-  if (cache) return cache
-  const seen = new Set<string>()
+function isManual(info: JavaInfo): boolean {
+  return isManualJava(info.path)
+}
+
+function sortJava(list: JavaInfo[]): JavaInfo[] {
+  return list.sort((a, b) => {
+    // 手动配置的 Java 始终排在最前（界面与 pickJava 都按这个顺序理解）
+    if (isManual(a) !== isManual(b)) return isManual(a) ? -1 : 1
+    return a.major - b.major || b.version.localeCompare(a.version)
+  })
+}
+
+/** 扫描本机所有可用 Java（结果会缓存；手动配置的 Java 排在最前） */
+export async function detectJava(force?: boolean): Promise<JavaInfo[]> {
+  if (cache && !force) return cache
+  cache = null
   const found: JavaInfo[] = []
+  // 同一份 java.exe 可能被多个来源找到（手动配置 vs PATH / 启动器），
+  // 按规范化后的真实路径去重，并且只要路径就是手动配置的那个，来源统一标成「手动配置」
+  const index = new Map<string, number>()
   for (const candidate of candidatePaths()) {
-    const key = candidate.file.toLowerCase()
-    if (seen.has(key)) continue
-    seen.add(key)
+    const key = normalizeFile(candidate.file).toLowerCase()
+    const manualSource = isManualJava(candidate.file)
+    const existing = index.get(key)
+    if (existing !== undefined) {
+      if (manualSource) found[existing].source = '手动配置'
+      continue
+    }
     const info = await probeJava(candidate.file, candidate.source)
-    if (info) found.push(info)
+    if (info) {
+      if (manualSource) info.source = '手动配置'
+      index.set(key, found.length)
+      found.push(info)
+    }
   }
-  cache = found.sort((a, b) => a.major - b.major || b.version.localeCompare(a.version))
+  cache = sortJava(found)
   return cache
 }
 
-/** 按需选择 Java：优先选择满足最低大版本的最小版本，否则退回最大的 */
+/**
+ * 按需选择 Java：
+ *  - 配置了「优先使用手动 Java」且它满足最低大版本时，直接用它运行安装器；
+ *  - 否则仍按「满足最低大版本的最小版本」挑选，手动 Java 只在同等条件下优先。
+ */
 export async function pickJava(minMajor?: number): Promise<JavaInfo | null> {
   const all = await detectJava()
   if (!all.length) return null
-  if (!minMajor) return all[all.length - 1]
+  // detectJava 已把手动 Java 排在第一位：开启「优先手动」且满足最低大版本时直接用它
+  const manualInfo = all.find(isManual) ?? null
+  if (manualInfo && prefersManualJava() && (!minMajor || manualInfo.major >= minMajor)) {
+    return manualInfo
+  }
+  if (!minMajor) {
+    const others = all.filter((item) => !isManual(item))
+    return others.length ? others[others.length - 1] : all[all.length - 1]
+  }
   const enough = all.filter((item) => item.major >= minMajor)
   return enough.length ? enough[0] : all[all.length - 1]
 }

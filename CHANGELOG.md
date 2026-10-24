@@ -2,6 +2,22 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 的格式，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased]
+
+### 新增
+
+- **手动指定 Java**（设置 → Java）：自动检测找不到 Java，或需要固定使用某个版本（例如某些 Forge 安装器必须用 Java 8）时，可以直接填写 / 浏览选择 `java.exe`。
+  - 支持三种写法：`java.exe` 本身、JDK / JRE 安装目录、`bin` 目录；
+  - 保存前会自动校验并显示版本（如「校验通过：Java 21.0.12.1（Java 21）」），无效路径给出明确原因；
+  - 「优先使用手动指定的 Java」开关：开启时 Forge 1.13+ / NeoForge / OptiFine 1.14+ 的安装器优先用它，关闭时仅在条件相同时优先；
+  - 手动路径写入设置文件，重启后继续生效，并会自动加入 Java 列表（标记「手动 / 生效」）；
+  - 自动检测结果现在显示来源（PATH / JAVA_HOME / 启动器自带等），并提供「下载 Java（Adoptium）」入口。
+
+### 修复
+
+- 冒烟测试使用独立的 `userData` 目录，不再覆盖用户真实的 `settings.json`。
+
+
 ## [0.3.0] - 2026-10-23
 
 **首个公开发布版本。** 这是一个独立的 Minecraft「下载 / 安装」工具：只从官方与公共镜像 CDN 拉取文件，负责安装、校验与修复，**不提供启动、登录、正版验证**功能。

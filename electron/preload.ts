@@ -34,6 +34,9 @@ const api: MinefluxApi = {
     mode: SourceMode,
   ) => ipcRenderer.invoke('mineflux:getModVersions', slug, mcVersion, loaders, mode),
   detectJava: () => ipcRenderer.invoke('mineflux:detectJava'),
+  chooseJavaFile: () => ipcRenderer.invoke('mineflux:chooseJavaFile'),
+  probeJavaPath: (target: string) => ipcRenderer.invoke('mineflux:probeJavaPath', target),
+  openJavaDownload: () => ipcRenderer.invoke('mineflux:openJavaDownload'),
   getPathForFile: (file: File) => webUtils.getPathForFile(file),
   getInstalledVersions: (root: string) => ipcRenderer.invoke('mineflux:getInstalledVersions', root),
   removeInstance: (root: string, name: string) =>

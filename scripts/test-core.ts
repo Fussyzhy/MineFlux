@@ -11,6 +11,14 @@ import { safeJoin } from '../src/core/fsutil'
 import { formatBytes, formatSpeed, percent } from '../src/renderer/lib/format'
 import { createZip } from '../src/core/zip'
 import { inspectModpack, installModpack, type ModpackInstallContext } from '../src/core/modpack'
+import {
+  detectJava,
+  getManualJava,
+  parseMajor,
+  prefersManualJava,
+  resolveJavaExecutable,
+  setManualJava,
+} from '../src/core/java'
 
 let passed = 0
 let failed = 0
@@ -127,6 +135,54 @@ await test('整合包清单里的穿越路径会在安装前被拒绝', async ()
 await test('外层的 PWNED.txt 没有被创建', async () => {
   const escaped = path.join(dir, 'PWNED.txt')
   check(!(await fs.stat(escaped).then(() => true).catch(() => false)), '整合包写出了游戏目录之外的文件')
+})
+
+// ------------------------------------------------------------------ 手动配置的 Java
+
+const exeName = process.platform === 'win32' ? 'java.exe' : 'java'
+const javaRoot = path.join(dir, 'jdk-21')
+
+await test('手动 Java 路径支持 java.exe / JDK 根目录 / bin 目录三种写法', async () => {
+  await fs.mkdir(path.join(javaRoot, 'bin'), { recursive: true })
+  const file = path.join(javaRoot, 'bin', exeName)
+  await fs.writeFile(file, '')
+  check(resolveJavaExecutable(file) === file, '直接指向 java.exe 时不应改动路径')
+  check(resolveJavaExecutable(javaRoot) === file, 'JDK 根目录应自动补 bin/java.exe')
+  check(resolveJavaExecutable(path.join(javaRoot, 'bin')) === file, 'bin 目录应自动补 java.exe')
+  check(resolveJavaExecutable(`"${javaRoot}"`) === file, '带引号的路径应被接受')
+})
+
+await test('手动 Java 路径为空 / 不存在时解析为空串', () => {
+  check(resolveJavaExecutable('') === '', '空路径应返回空串')
+  check(resolveJavaExecutable('   ') === '', '纯空白应返回空串')
+  check(resolveJavaExecutable(path.join(dir, 'not-exist')) === '', '不存在的路径应返回空串')
+})
+
+await test('手动 Java 不会被当成可用的 Java 运行', async () => {
+  // 假 java.exe 无法真正运行，这里验证「记忆」且不会把假路径当成可用 Java
+  setManualJava({ path: javaRoot, prefer: true })
+  check(prefersManualJava(), '应记住「优先手动」')
+  check(getManualJava()?.path === javaRoot, '应记住手动路径')
+  const all = await detectJava(true)
+  check(!all.some((item) => item.source === '手动配置'), '无法运行的假 java 不应出现在检测结果里')
+  setManualJava(null)
+  check(getManualJava() === null, '清除后应为空')
+  check(!prefersManualJava(), '清除后不应再优先手动')
+})
+
+await test('设置手动 Java 会让检测缓存失效', async () => {
+  await detectJava(true)
+  setManualJava({ path: javaRoot, prefer: false })
+  const first = await detectJava()
+  setManualJava(null)
+  const second = await detectJava()
+  check(first !== second, '手动 Java 变化后应重新扫描而不是返回旧缓存')
+})
+
+await test('parseMajor 兼容 1.x 与 21.x', () => {
+  check(parseMajor('1.8.0_412') === 8, 'Java 8 主版本解析错误')
+  check(parseMajor('21.0.5') === 21, 'Java 21 主版本解析错误')
+  check(parseMajor('') === 0, '空版本应为 0')
 })
 
 await fs.rm(dir, { recursive: true, force: true })

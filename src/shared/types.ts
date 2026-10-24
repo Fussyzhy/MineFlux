@@ -173,6 +173,10 @@ export interface Settings {
   /** 新建实例时默认开启版本隔离 */
   isolation: boolean
   curseforgeApiKey: string
+  /** 手动配置的 Java 可执行文件（留空 = 只用自动检测） */
+  javaPath: string
+  /** 自动检测也找到了 Java 时，是否仍优先使用上面手动配置的 Java */
+  javaPreferManual: boolean
 }
 
 export interface LoaderVersionItem {
@@ -237,8 +241,25 @@ export interface WindowStateEvent {
 
 export interface JavaReport {
   found: number
-  versions: { path: string; major: number; version: string }[]
+  versions: { path: string; major: number; version: string; source?: string; manual?: boolean }[]
+  /** 当前生效（安装器会使用）的 Java 路径 */
+  selected?: string
+  /** 手动配置的 Java 路径（原样） */
+  manualPath?: string
+  /** 手动配置的 Java 校验失败时的原因 */
+  manualError?: string
   note?: string
+}
+
+/** 手动配置 Java 路径的校验结果 */
+export interface JavaProbeResult {
+  ok: boolean
+  /** 解析后的 java 可执行文件绝对路径（ok 时返回） */
+  path?: string
+  major?: number
+  version?: string
+  /** 失败原因（人类可读） */
+  error?: string
 }
 
 export interface MinefluxApi {
@@ -265,6 +286,12 @@ export interface MinefluxApi {
     mode: SourceMode,
   ): Promise<ModVersionList>
   detectJava(): Promise<JavaReport>
+  /** 选择 java 可执行文件（默认指向 Program Files 下的 Java 目录） */
+  chooseJavaFile(): Promise<string | null>
+  /** 校验用户填写的 Java 路径：可以填 java.exe、JDK 根目录或 bin 目录 */
+  probeJavaPath(target: string): Promise<JavaProbeResult>
+  /** 打开 Java 下载页（用于提示用户去哪里安装 Java） */
+  openJavaDownload(): Promise<void>
   /** 拖拽文件的绝对路径（Electron webUtils） */
   getPathForFile(file: File): string
   /** 目标目录中已安装的实例（依据 versions/<id>/<id>.json 判断） */

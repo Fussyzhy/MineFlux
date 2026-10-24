@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import type { JavaReport, Settings, SourceMode } from '../../shared/types'
+import type { JavaProbeResult, JavaReport, Settings, SourceMode } from '../../shared/types'
 import type { SettingsTab } from '../lib/nav'
 import { shortPath } from '../lib/format'
-import { IconFolder, IconInfo, IconRefresh, IconSettings } from '../components/Icons'
+import { IconFolder, IconInfo, IconSettings } from '../components/Icons'
+import { JavaSettingsPanel } from '../components/JavaSettingsPanel'
 import { PageHeader } from '../components/PageHeader'
 import { SideNav } from '../components/SideNav'
 
@@ -35,6 +36,11 @@ interface Props {
   onPickFolder: () => void
   onDetectJava: () => void
   onReveal: (target: string) => void
+  /** 手动指定 Java：浏览文件 / 保存并重新检测 / 校验路径 / 打开下载页 */
+  onPickJavaFile: () => void
+  onJavaSettings: (patch: Partial<Settings>) => void
+  onProbeJavaPath: (target: string) => Promise<JavaProbeResult | null>
+  onOpenJavaDownload: () => void
 }
 
 /** 设置页（PCL 的「设置」）：左栏分类 + 右侧设置卡片 */
@@ -47,6 +53,10 @@ export function SettingsPage({
   onPickFolder,
   onDetectJava,
   onReveal,
+  onPickJavaFile,
+  onJavaSettings,
+  onProbeJavaPath,
+  onOpenJavaDownload,
 }: Props) {
   const [tab, setTab] = useState<SettingsTab>('download')
 
@@ -195,57 +205,17 @@ export function SettingsPage({
           )}
 
           {tab === 'java' && (
-            <>
-              <div className="card settings-card">
-                <div className="settings-title">Java 环境</div>
-                <div className="settings-desc">
-                  Forge 1.13+ / NeoForge / OptiFine 1.14+ 的官方安装器需要本机 Java 才能运行；
-                  原版下载与 Fabric / Quilt / LiteLoader / OptiFine 1.13.2 及以下不需要。
-                </div>
-                <div className="action-row">
-                  <button className="btn btn-sm" onClick={onDetectJava}>
-                    <IconRefresh />
-                    重新检测
-                  </button>
-                  <span className={`java-badge ${javaReport && javaReport.found === 0 ? 'java-badge-warn' : ''}`}>
-                    {javaReport
-                      ? javaReport.found
-                        ? `检测到 ${javaReport.found} 个 Java`
-                        : '未检测到 Java'
-                      : '检测中…'}
-                  </span>
-                </div>
-                {javaReport?.versions.length ? (
-                  <div className="java-list">
-                    {javaReport.versions.map((item) => (
-                      <div className="java-item" key={item.path}>
-                        <span className="java-item-path" title={item.path}>
-                          {item.path}
-                        </span>
-                        <span className="java-item-tag">
-                          Java {item.major} · {item.version}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="inline-hint warn">
-                    <IconInfo />
-                    <span>
-                      {javaReport?.note ??
-                        '未检测到 Java：Forge 1.13+ / NeoForge / OptiFine 1.14+ 需要 Java 才能安装'}
-                    </span>
-                  </div>
-                )}
-              </div>
-              <div className="card settings-card">
-                <div className="settings-title">安装建议</div>
-                <div className="settings-desc">
-                  当前环境没有 Java 也不影响原版、Fabric、Quilt、LiteLoader 与 OptiFine
-                  旧版的安装；需要 Java 的安装器会在开始前直接给出明确提示。
-                </div>
-              </div>
-            </>
+            <JavaSettingsPanel
+              settings={settings}
+              javaReport={javaReport}
+              busy={busy}
+              onJavaSettings={onJavaSettings}
+              onDetectJava={onDetectJava}
+              onPickJavaFile={onPickJavaFile}
+              onProbeJavaPath={onProbeJavaPath}
+              onOpenJavaDownload={onOpenJavaDownload}
+              onReveal={onReveal}
+            />
           )}
         </div>
       </div>

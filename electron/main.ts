@@ -5,11 +5,20 @@ import { InstallTask } from '../src/core/install'
 import { fetchVersionManifest } from '../src/core/manifest'
 import { listLoaderVersions } from '../src/core/loaders'
 import { listModrinthModVersions } from '../src/core/loaders/resources'
-import { detectJava } from '../src/core/java'
+import {
+  detectJava,
+  getManualJava,
+  isManualJava,
+  probeJava,
+  resolveJavaExecutable,
+  setManualJava,
+} from '../src/core/java'
 import { inspectModpack } from '../src/core/modpack'
 import { listInstances, removeInstance } from '../src/core/instance'
 import type {
   InstallRequest,
+  JavaProbeResult,
+  JavaReport,
   LoaderId,
   LoaderVersionList,
   LogLine,
@@ -24,12 +33,19 @@ const isDev = Boolean(process.env.VITE_DEV_SERVER_URL)
 const isSmoke = process.argv.includes('--smoke')
 const smokeInstallArg = process.argv.find((arg) => arg.startsWith('--smoke-install='))
 const smokeInstall = smokeInstallArg ? smokeInstallArg.slice('--smoke-install='.length) : null
+const smokeJavaArg = process.argv.find((arg) => arg.startsWith('--smoke-java='))
+const smokeJava = smokeJavaArg ? smokeJavaArg.slice('--smoke-java='.length) : null
 
 let mainWindow: BrowserWindow | null = null
 let activeTask: InstallTask | null = null
 const manifestCache = new Map<string, { at: number; value: VersionListResult }>()
 
 // ------------------------------------------------------------------ 设置
+
+/** 冒烟测试用独立的 userData（--user-data-dir），避免改到用户真实设置 */
+if (isSmoke && !app.commandLine.hasSwitch('user-data-dir')) {
+  app.setPath('userData', path.join(app.getPath('temp'), 'mineflux-smoke-userdata'))
+}
 
 function settingsFile(): string {
   return path.join(app.getPath('userData'), 'settings.json')
@@ -55,7 +71,15 @@ function defaultSettings(): Settings {
     verifyHashes: true,
     isolation: true,
     curseforgeApiKey: process.env.MINEFLUX_CURSEFORGE_API_KEY ?? '',
+    javaPath: '',
+    javaPreferManual: true,
   }
+}
+
+/** 把设置里的手动 Java 同步给 core/java（安装器选择 Java 时会优先使用它） */
+function applyManualJava(settings: Settings): void {
+  const path = (settings.javaPath ?? '').trim()
+  setManualJava(path ? { path, prefer: settings.javaPreferManual !== false } : null)
 }
 
 function loadSettings(): Settings {
@@ -74,6 +98,63 @@ function saveSettings(settings: Settings): void {
   } catch (error) {
     console.error('保存设置失败', error)
   }
+  applyManualJava(settings)
+}
+
+// ------------------------------------------------------------------ Java
+
+/** Java 下载页（给没装 Java 的用户一个明确去处） */
+const JAVA_DOWNLOAD_URL = 'https://adoptium.net/temurin/releases/?os=windows&arch=x64&package=jdk'
+
+/** 生成界面用的 Java 报告：包含全部候选，并标记当前生效的那个 */
+async function buildJavaReport(): Promise<JavaReport> {
+  const all = await detectJava()
+  const manual = getManualJava()
+  const manualPath = manual?.path ?? ''
+  let manualError: string | undefined
+  if (manualPath) {
+    const file = resolveJavaExecutable(manualPath)
+    const probed = file ? await probeJava(file, '手动配置') : null
+    if (!probed) manualError = '手动配置的 Java 路径无效或无法运行，请检查路径是否指向 java.exe'
+  }
+  // 与 core 的 pickJava 保持同一套规则（不带最低版本要求时）
+  const manualInfo = all.find((item) => isManualJava(item.path))
+  const autoInfo = all.filter((item) => !isManualJava(item.path))
+  const selected =
+    (manualInfo && (manual?.prefer || !autoInfo.length) ? manualInfo.path : undefined) ??
+    (autoInfo.length ? autoInfo[autoInfo.length - 1].path : manualInfo?.path)
+  return {
+    found: all.length,
+    versions: all.map((item) => ({
+      path: item.path,
+      major: item.major,
+      version: item.version,
+      source: item.source,
+      manual: isManualJava(item.path),
+    })),
+    manualPath: manualPath || undefined,
+    manualError,
+    selected,
+    note: all.length
+      ? undefined
+      : '未检测到 Java：Forge 1.13+ / NeoForge / OptiFine 1.14+ 需要 Java 才能安装',
+  }
+}
+
+/** 校验手动填写的路径：java.exe / JDK 根目录 / bin 目录都可以 */
+async function probeJavaSetting(target: string): Promise<JavaProbeResult> {
+  const input = (target ?? '').trim()
+  if (!input) return { ok: false, error: '请填写 Java 路径' }
+  const file = resolveJavaExecutable(input)
+  if (!file) {
+    return {
+      ok: false,
+      error: '路径不存在：请填写 java.exe，或 JDK / JRE 的安装目录（例如 C:\\Program Files\\Java\\jdk-21）',
+    }
+  }
+  const info = await probeJava(file, '手动配置')
+  if (!info) return { ok: false, error: `无法运行 ${file}，它可能不是有效的 Java 可执行文件` }
+  return { ok: true, path: file, major: info.major, version: info.version }
 }
 
 /** 冒烟测试专用的独立安装目录，避免污染用户目录 */
@@ -301,18 +382,33 @@ function registerIpc(): void {
   )
 
   ipcMain.handle('mineflux:detectJava', async () => {
-    const versions = await detectJava()
-    return {
-      found: versions.length,
-      versions: versions.map((item) => ({
-        path: item.path,
-        major: item.major,
-        version: item.version,
-      })),
-      note: versions.length
-        ? undefined
-        : '未检测到 Java：Forge 1.13+ / NeoForge / OptiFine 1.14+ 需要 Java 才能安装',
-    }
+    return buildJavaReport()
+  })
+
+  ipcMain.handle('mineflux:chooseJavaFile', async () => {
+    const manual = getManualJava()
+    const current = manual ? resolveJavaExecutable(manual.path) : ''
+    const result = await dialog.showOpenDialog({
+      title: '选择 java.exe',
+      properties: ['openFile'],
+      defaultPath: current || process.env.ProgramFiles || undefined,
+      filters: process.platform === 'win32'
+        ? [
+            { name: 'Java 可执行文件', extensions: ['exe'] },
+            { name: '全部文件', extensions: ['*'] },
+          ]
+        : [{ name: '全部文件', extensions: ['*'] }],
+    })
+    if (result.canceled || !result.filePaths.length) return null
+    return result.filePaths[0]
+  })
+
+  ipcMain.handle('mineflux:probeJavaPath', async (_event, target: string) => {
+    return probeJavaSetting(target)
+  })
+
+  ipcMain.handle('mineflux:openJavaDownload', async () => {
+    await shell.openExternal(JAVA_DOWNLOAD_URL)
   })
 }
 
@@ -403,6 +499,44 @@ async function runSmoke(window: BrowserWindow): Promise<void> {
     await clickSelector(`[data-sub="${sub}"]`)
     await new Promise((resolve) => setTimeout(resolve, 500))
   }
+  /** 往设置页的 Java 输入框里填路径并触发保存（验证手动配置 Java 的链路） */
+  const typeJavaPath = async (value: string): Promise<void> => {
+    const typed = await window.webContents.executeJavaScript(
+      `(() => {
+        const input = document.querySelector('.java-path-field input')
+        if (!input) return false
+        const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set
+        setter.call(input, ${JSON.stringify(value)})
+        input.dispatchEvent(new Event('input', { bubbles: true }))
+        input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+        return true
+      })()`,
+    )
+    console.log(`[smoke] type java path ${value} -> ${typed}`)
+    await new Promise((resolve) => setTimeout(resolve, 2500))
+  }
+  const javaDom = async (): Promise<Record<string, unknown>> => {
+    return (await window.webContents.executeJavaScript(
+      `(() => ({
+        effective: document.querySelector('[data-java-effective]')?.innerText ?? '',
+        rows: [...document.querySelectorAll('[data-java-list] .java-item')].map((el) => el.innerText.replace(/\\n/g, ' ')),
+        hints: [...document.querySelectorAll('.inline-hint')].map((el) => el.innerText.replace(/\\n/g, ' ')),
+      }))()`,
+    )) as Record<string, unknown>
+  }
+  /** 切换「优先使用手动指定的 Java」 */
+  const togglePrefer = async (): Promise<void> => {
+    const flipped = await window.webContents.executeJavaScript(
+      `(() => {
+        const input = document.querySelector('.java-prefer input')
+        if (!input) return null
+        input.click()
+        return input.checked
+      })()`,
+    )
+    console.log(`[smoke] toggle prefer -> ${flipped}`)
+    await new Promise((resolve) => setTimeout(resolve, 2500))
+  }
 
   try {
     await openPage('download')
@@ -425,6 +559,26 @@ async function runSmoke(window: BrowserWindow): Promise<void> {
     await capture('smoke-tasks.png')
     await openPage('settings')
     await capture('smoke-settings.png')
+    await openSub('java')
+    await capture('smoke-settings-java.png')
+    if (smokeJava) {
+      // 手动指定一个「真实存在但无法运行」的假 java.exe：校验应失败并给出原因
+      await typeJavaPath(smokeJava)
+      console.log(`[smoke] java report(bad): ${JSON.stringify(await javaDom())}`)
+      await capture('smoke-java-bad.png')
+      await typeJavaPath(`${fs.realpathSync(process.env.WINDIR ?? 'C:\\Windows')}\\System32\\choice.exe`)
+      await typeJavaPath('')
+      console.log(`[smoke] java report(cleared): ${JSON.stringify(await javaDom())}`)
+      await capture('smoke-java-cleared.png')
+      // 再指定一次 jdk，然后关掉「优先手动」：应回退到自动检测的结果
+      await typeJavaPath(smokeJava)
+      await togglePrefer()
+      console.log(`[smoke] java report(auto): ${JSON.stringify(await javaDom())}`)
+      await capture('smoke-java-auto.png')
+      await togglePrefer()
+      console.log(`[smoke] java report(prefer): ${JSON.stringify(await javaDom())}`)
+      await typeJavaPath('')
+    }
     await openPage('about')
     await capture('smoke-about.png')
   } catch (error) {
@@ -442,6 +596,8 @@ if (isSmoke) app.disableHardwareAcceleration()
 
 app.whenReady().then(async () => {
   if (process.platform === 'win32') app.setAppUserModelId('com.mineflux.downloader')
+  // 手动配置的 Java 要在任何一次检测 / 安装之前注入
+  applyManualJava(loadSettings())
   registerIpc()
   mainWindow = createWindow()
   mainWindow.on('closed', () => {

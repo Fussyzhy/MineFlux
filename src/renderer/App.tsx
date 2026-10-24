@@ -3,6 +3,7 @@ import type {
   InstallComponents,
   InstallRequest,
   InstalledInstance,
+  JavaProbeResult,
   JavaReport,
   LogLine,
   ModpackInfo,
@@ -32,6 +33,8 @@ const DEFAULT_SETTINGS: Settings = {
   verifyHashes: true,
   isolation: true,
   curseforgeApiKey: '',
+  javaPath: '',
+  javaPreferManual: true,
 }
 
 function cleanError(error: unknown): string {
@@ -121,6 +124,39 @@ export default function App() {
     }
   }, [api])
 
+  /** 保存手动配置的 Java 后，主进程会重新扫描，这里同步刷新界面上的状态 */
+  const updateJavaSettings = useCallback(
+    async (patch: Partial<Settings>): Promise<void> => {
+      setSettings((previous) => {
+        const next = { ...previous, ...patch }
+        void api.saveSettings(next).catch(() => undefined)
+        return next
+      })
+      setError(null)
+      await refreshJava()
+    },
+    [api, refreshJava],
+  )
+
+  const pickJavaFile = useCallback(async (): Promise<void> => {
+    await run(async () => {
+      const file = await api.chooseJavaFile()
+      if (!file) return
+      await updateJavaSettings({ javaPath: file })
+    })
+  }, [api, run, updateJavaSettings])
+
+  const probeJavaPath = useCallback(
+    async (target: string): Promise<JavaProbeResult | null> => {
+      try {
+        return await api.probeJavaPath(target)
+      } catch {
+        return { ok: false, error: '无法校验该路径' }
+      }
+    },
+    [api],
+  )
+
   // 初始化
   useEffect(() => {
     void (async () => {
@@ -207,7 +243,6 @@ export default function App() {
     },
     [api],
   )
-
   const patchOptions = useCallback((patch: Partial<InstallOptionsState>) => {
     setOptions((previous) => ({ ...previous, ...patch }))
   }, [])
@@ -525,6 +560,10 @@ export default function App() {
             onPickFolder={() => void pickFolder()}
             onDetectJava={() => void refreshJava()}
             onReveal={(target) => void api.revealPath(target)}
+            onPickJavaFile={() => void pickJavaFile()}
+            onJavaSettings={(patch) => void updateJavaSettings(patch)}
+            onProbeJavaPath={probeJavaPath}
+            onOpenJavaDownload={() => void api.openJavaDownload()}
           />
         )}
 
