@@ -22,7 +22,13 @@ import {
   NEOFORGE_MIRROR_API,
   mirroredMaven,
 } from './sources'
-import type { LoaderContext, LoaderListOptions, LoaderListResult, LoaderResult } from './types'
+import type {
+  LoaderContext,
+  LoaderListOptions,
+  LoaderListResult,
+  LoaderResult,
+} from './types'
+import { loaderWorkRoot } from './types'
 
 function forgeVersionFromMetadata(item: string, mcVersion: string): string {
   return item.startsWith(`${mcVersion}-`) ? item.slice(mcVersion.length + 1) : item
@@ -196,25 +202,27 @@ async function runInstallerAndReadProfile(
   jarPath: string,
   label: string,
 ): Promise<RawVersion> {
-  await ensureLauncherProfiles(ctx.root)
-  const before = new Set(await listVersionFolders(ctx.root))
+  // 安装器在工作区里运行：它生成的中间版本目录与 launcher_profiles.json 不落到真实游戏目录
+  const installedRoot = loaderWorkRoot(ctx)
+  await ensureLauncherProfiles(installedRoot)
+  const before = new Set(await listVersionFolders(installedRoot))
   ctx.log('info', `开始运行 ${label} 安装器（--installClient）`)
-  await ctx.runInstaller(['-jar', jarPath, '--installClient', ctx.root], { minJava: 8 })
-  const after = await listVersionFolders(ctx.root)
+  await ctx.runInstaller(['-jar', jarPath, '--installClient', installedRoot], { minJava: 8 })
+  const after = await listVersionFolders(installedRoot)
   const added = after.filter((name) => !before.has(name))
   const candidates = added.filter((name) =>
-    fs.existsSync(path.join(ctx.root, 'versions', name, `${name}.json`)),
+    fs.existsSync(path.join(installedRoot, 'versions', name, `${name}.json`)),
   )
   if (!candidates.length) {
     throw new Error(`${label} 安装器运行完成，但没有找到生成的版本 JSON`)
   }
   const folder = candidates[0]
-  const jsonPath = path.join(ctx.root, 'versions', folder, `${folder}.json`)
+  const jsonPath = path.join(installedRoot, 'versions', folder, `${folder}.json`)
   const profile = await readVersionJson(jsonPath)
   if (!profile) throw new Error(`${label} 安装器生成的版本 JSON 无法解析：${jsonPath}`)
   ctx.log('info', `${label} 安装器生成版本：${folder}`)
   // 生成的版本文件夹只是中间产物，实例 JSON 会合并进目标实例
-  await fsp.rm(path.join(ctx.root, 'versions', folder), { recursive: true, force: true })
+  await fsp.rm(path.join(installedRoot, 'versions', folder), { recursive: true, force: true })
   return profile
 }
 

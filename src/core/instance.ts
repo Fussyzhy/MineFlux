@@ -127,9 +127,11 @@ export async function ensureDataDirs(base: string): Promise<void> {
 const VANILLA_MAIN_CLASSES = new Set(['net.minecraft.client.main.Main', 'net.minecraft.client.Minecraft'])
 
 /**
- * 原版基座：安装加载器实例时下载的原版版本目录（例如 versions/26.3）。
+ * 原版基座：旧版本安装加载器时在 versions/ 里留下的原版版本目录（例如 versions/26.3）。
  * 特征是没有安装清单、没有 inheritsFrom、主类仍是原版主类。
- * 它不是用户主动创建的实例，需要在列表里单独归类，否则会被误标成「外部实例」。
+ *
+ * 现在的安装流程已经把原版 json / jar 放进临时工作区，安装完不再产生这种目录；
+ * 这里保留判断是为了兼容旧版本安装留下的数据，避免它们被标成「外部实例」。
  */
 function looksLikeVanillaBase(json: { inheritsFrom?: string; mainClass?: string }): boolean {
   if (json.inheritsFrom) return false

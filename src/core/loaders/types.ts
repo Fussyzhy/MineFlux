@@ -32,6 +32,11 @@ export interface LoaderListResult {
 
 export interface LoaderContext {
   root: string
+  /**
+   * 安装工作区（PCL 的 TempMcFolder）。安装器会在这里读写 versions/ 与 launcher_profiles.json，
+   * 避免把「原版基座」或中间版本目录留在真实游戏目录里。缺省时退回 root。
+   */
+  workRoot?: string
   /** 最终实例目录名（用于 OptiFine 生成的版本名等） */
   instanceName: string
   mcVersion: string
@@ -62,4 +67,9 @@ export interface LoaderListOptions {
   mcVersion: string
   mode: SourceMode
   signal?: AbortSignal
+}
+
+/** 安装器应当使用的「游戏目录」：工作区优先，没有配置时退回真实目录 */
+export function loaderWorkRoot(ctx: LoaderContext): string {
+  return ctx.workRoot ?? ctx.root
 }

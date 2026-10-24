@@ -91,6 +91,9 @@ function thirdPartyUrls(url: string, mode: SourceMode): string[] {
 /**
  * 生成「除 assets/objects 之外」的下载清单。
  * @param instanceJson 已经写好的实例 JSON（提供 sha1/size 时会被纳入清单并跳过下载）
+ * @param workRoot 安装工作区（PCL 的 TempMcFolder）。给出时，versions/ 下的原版 json / jar
+ *   会写进工作区而不是真实游戏目录，避免在 versions/ 里留下「原版基座」目录；
+ *   libraries/ 与 assets/ 始终使用真实的 root，保持多实例共享。
  */
 export function buildBasePlan(options: {
   root: string
@@ -105,8 +108,11 @@ export function buildBasePlan(options: {
   instanceJson?: { sha1: string; size: number }
   /** 是否把原版 JSON 也放进下载清单（实例名与原版不同名时需要，安装器会读它） */
   wantVanillaJson?: boolean
+  workRoot?: string
 }): BasePlan {
   const { root, raw, mode, ctx } = options
+  // versions/ 与 launcher_profiles.json 之类放在工作区，libraries/assets 用真实 root
+  const versionsRoot = options.workRoot ?? root
   const versionId = options.versionId
   const instanceName = options.instanceName ?? versionId
   const files: PlannedFile[] = []
@@ -119,7 +125,7 @@ export function buildBasePlan(options: {
     files.push(
       toPlanned(
         'versionJson',
-        root,
+        versionsRoot,
         vanillaJsonRel,
         metaUrls(options.versionUrl, mode),
         undefined,
@@ -131,7 +137,7 @@ export function buildBasePlan(options: {
     files.push(
       toPlanned(
         'versionJson',
-        root,
+        versionsRoot,
         instanceJsonRel,
         [],
         options.instanceJson.size,
@@ -144,23 +150,23 @@ export function buildBasePlan(options: {
   let clientJarPath: string | null = null
   let instanceJarPath: string | null = null
   if (clientArtifact?.url) {
-    clientJarPath = path.join(root, 'versions', versionId, `${versionId}.jar`)
+    clientJarPath = path.join(versionsRoot, 'versions', versionId, `${versionId}.jar`)
     files.push(
       toPlanned(
         'client',
-        root,
+        versionsRoot,
         path.join('versions', versionId, `${versionId}.jar`),
         metaUrls(clientArtifact.url, mode),
         clientArtifact.size,
         clientArtifact.sha1,
       ),
     )
-    instanceJarPath = path.join(root, 'versions', instanceName, `${instanceName}.jar`)
+    instanceJarPath = path.join(versionsRoot, 'versions', instanceName, `${instanceName}.jar`)
     // 实例 jar 由任务在下载完成后复制，这里只登记校验信息以便统计与修复
     files.push(
       toPlanned(
         'client',
-        root,
+        versionsRoot,
         path.join('versions', instanceName, `${instanceName}.jar`),
         instanceName === versionId ? metaUrls(clientArtifact.url, mode) : [],
         clientArtifact.size,
@@ -169,8 +175,8 @@ export function buildBasePlan(options: {
     )
   } else if (raw.jar) {
     // 旧版继承 JSON：客户端 jar 指向父版本
-    clientJarPath = path.join(root, 'versions', raw.jar, `${raw.jar}.jar`)
-    instanceJarPath = path.join(root, 'versions', instanceName, `${instanceName}.jar`)
+    clientJarPath = path.join(versionsRoot, 'versions', raw.jar, `${raw.jar}.jar`)
+    instanceJarPath = path.join(versionsRoot, 'versions', instanceName, `${instanceName}.jar`)
     warnings.push(`该版本复用 ${raw.jar} 的客户端 jar`)
   } else {
     warnings.push('该版本 json 中没有客户端 jar 的下载信息（可能是继承版本或仅有资源）')

@@ -165,6 +165,37 @@ async function main(): Promise<void> {
     check(kinds.has('versionJson') && kinds.has('client') && kinds.has('library'), `缺少文件类型：${[...kinds]}`)
   })
 
+  await test('buildBasePlan 指定工作区时原版文件落工作区、libraries 仍共享', async () => {
+    const root = path.join(baseDir, 'plan-work')
+    const work = path.join(root, '.work')
+    const plan = buildBasePlan({
+      root,
+      workRoot: work,
+      versionId: '1.8.9',
+      instanceName: 'WorkInst',
+      raw: syntheticRaw('1.8.9'),
+      mode: MODE,
+      ctx: detectRuleContext(),
+      instanceJson: { sha1: '3'.repeat(40), size: 2 },
+      wantVanillaJson: false,
+    })
+    check(plan.clientJarPath === path.join(work, 'versions', '1.8.9', '1.8.9.jar'), '原版 jar 应落在工作区')
+    check(
+      plan.files.some((file) => file.dest === path.join(work, 'versions', 'WorkInst', 'WorkInst.json')),
+      '实例 JSON 应落在工作区',
+    )
+    const libraries = plan.files.filter((file) => file.kind === 'library')
+    check(libraries.length > 0, '计划里没有库文件')
+    check(
+      libraries.every((file) => file.dest.startsWith(path.join(root, 'libraries'))),
+      'libraries 应写在真实游戏目录（多实例共享）',
+    )
+    check(
+      plan.files.every((file) => file.kind === 'library' || file.dest.startsWith(work)),
+      '除 libraries 外的文件都应落在工作区',
+    )
+  })
+
   // ---------------------------------------------------------------- 3. Fabric
   let fabricVersion = ''
   await test('Fabric 版本列表 + profile', async () => {
@@ -470,11 +501,22 @@ async function main(): Promise<void> {
 
     const instanceJson = path.join(root, 'versions', 'My 1.8.9', 'My 1.8.9.json')
     check(fs.existsSync(instanceJson), '实例 JSON 未生成')
-    const profile = JSON.parse(fs.readFileSync(instanceJson, 'utf8')) as { id?: string; inheritsFrom?: string }
+    const profile = JSON.parse(fs.readFileSync(instanceJson, 'utf8')) as {
+      id?: string
+      inheritsFrom?: string
+      libraries?: unknown[]
+    }
     check(profile.id === 'My 1.8.9', `实例 JSON id 错误：${String(profile.id)}`)
     check(!profile.inheritsFrom, '实例 JSON 不应包含 inheritsFrom')
+    check((profile.libraries?.length ?? 0) > 0, '实例 JSON 应包含完整内联的 libraries')
     check(fs.existsSync(path.join(root, 'versions', 'My 1.8.9', 'My 1.8.9.jar')), '实例 jar 未复制')
-    check(fs.existsSync(path.join(root, 'versions', '1.8.9', '1.8.9.jar')), '原版 jar 缺失')
+    // 新版流程：原版文件只在安装工作区里流转，不再在 versions/ 留下「原版基座」目录
+    check(
+      !fs.existsSync(path.join(root, 'versions', '1.8.9')),
+      '不应在原版基座目录 versions/1.8.9 留下文件',
+    )
+    // libraries 仍然共享在游戏根目录
+    check(fs.existsSync(path.join(root, 'libraries')), 'libraries 目录缺失')
     const dataDir = dataDirOf(root, 'My 1.8.9', true)
     check(fs.existsSync(path.join(dataDir, 'mods')), `隔离目录没有 mods：${dataDir}`)
     check(!fs.existsSync(path.join(root, 'versions', 'My 1.8.9', '.pclignore')), '.pclignore 未清理')

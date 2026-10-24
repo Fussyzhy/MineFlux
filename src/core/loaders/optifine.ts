@@ -14,6 +14,7 @@ import { readVersionJson, type RawVersion } from '../version-json'
 import { copyDirMerge, ensureDir, versionDrop } from '../fsutil'
 import { OPTIFINE_DOWNLOAD_MIRROR, OPTIFINE_LIST_MIRROR } from './sources'
 import type { LoaderContext, LoaderListOptions, LoaderListResult, LoaderResult, LoaderVersionEntry } from './types'
+import { loaderWorkRoot } from './types'
 
 interface OptiFineListEntry {
   mcversion?: string
@@ -150,10 +151,16 @@ async function installViaInstaller(ctx: LoaderContext, jarPath: string): Promise
   const mcDir = path.join(home, '.minecraft')
   const vanillaFolder = path.join(mcDir, 'versions', ctx.mcVersion)
   await ensureDir(vanillaFolder)
-  const realFolder = path.join(ctx.root, 'versions', ctx.mcVersion)
+  // 原版 json / jar 在安装工作区里（PCL 的 TempMcFolder），没有时再回退真实目录
+  const searchRoots = ctx.workRoot ? [loaderWorkRoot(ctx), ctx.root] : [ctx.root]
   for (const name of [`${ctx.mcVersion}.json`, `${ctx.mcVersion}.jar`]) {
-    const from = path.join(realFolder, name)
-    if (fs.existsSync(from)) await fsp.copyFile(from, path.join(vanillaFolder, name))
+    for (const searchRoot of searchRoots) {
+      const from = path.join(searchRoot, 'versions', ctx.mcVersion, name)
+      if (fs.existsSync(from)) {
+        await fsp.copyFile(from, path.join(vanillaFolder, name))
+        break
+      }
+    }
   }
   if (!fs.existsSync(path.join(vanillaFolder, `${ctx.mcVersion}.jar`))) {
     throw new Error('安装 OptiFine 需要先下载原版客户端 jar')
@@ -178,9 +185,8 @@ async function installViaInstaller(ctx: LoaderContext, jarPath: string): Promise
   if (!folder) throw new Error('OptiFine 安装器没有生成版本 JSON')
   const profile = await readVersionJson(path.join(mcDir, 'versions', folder, `${folder}.json`))
   if (!profile) throw new Error('OptiFine 安装器生成的版本 JSON 无法解析')
-  // 把安装器产出的 libraries / versions 合并进真实目录
+  // 安装器产出的 libraries 合并进真实目录（多实例共享）；versions/ 里的中间产物不落到游戏目录
   const copied = await copyDirMerge(mcDir, ctx.root, new Set(['launcher_profiles.json', 'versions']))
-  await copyDirMerge(path.join(mcDir, 'versions'), path.join(ctx.root, 'versions'))
   ctx.log('info', `OptiFine 安装器生成了 ${copied} 个文件，已合并进游戏目录`)
   await fsp.rm(home, { recursive: true, force: true })
   return profile

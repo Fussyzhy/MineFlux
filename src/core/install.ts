@@ -28,6 +28,7 @@ import {
 import {
   mergeVersionJson,
   normalizeInstanceJson,
+  readVersionJsonSync,
   type RawVersion,
 } from './version-json'
 import { LOADER_LABELS, prepareLoader, type LoaderContext } from './loaders'
@@ -41,13 +42,14 @@ import {
   instanceJsonPath,
   instanceJarPath,
   isInstalling,
+  manifestPath,
   markInstalling,
   sanitizeInstanceName,
   unmarkInstalling,
   writeManifest,
 } from './instance'
 import { ensureModpackDirs, installModpack } from './modpack'
-import { safeJoin, writeFileAtomic } from './fsutil'
+import { safeJoin, writeFileAtomic, copyDirMerge } from './fsutil'
 
 /** 阶段顺序与展示名（对应 PCL 的安装 LoaderTask 列表） */
 const STAGE_ORDER: StageId[] = [
@@ -89,6 +91,11 @@ export class InstallTask {
   private vanillaRaw: RawVersion | null = null
   private instanceName: string
   private readonly tempDir: string
+  /**
+   * 安装工作区（对应 PCL 的 TempMcFolder）：原版 json / jar 与加载器安装器产出都落在这里，
+   * 安装成功后再把 versions/<实例> 交付到真实目录，并在 versions/ 里不留「原版基座」。
+   */
+  private readonly workDir: string
 
   /** 已登记过的目标路径，避免重复计数 */
   private plannedDests = new Set<string>()
@@ -134,6 +141,7 @@ export class InstallTask {
       request.mode === 'auto' && request.manifestSource === 'mojang' ? 'official' : request.mode
     this.instanceName = sanitizeInstanceName(request.instanceName || request.versionId)
     this.tempDir = path.join(os.tmpdir(), 'mineflux-temp', this.id)
+    this.workDir = path.join(this.tempDir, 'work')
     this.engine = new DownloadEngine({
       concurrency: Math.max(1, Math.min(64, request.concurrency || 24)),
       verifyHashes: request.verifyHashes,
@@ -404,9 +412,12 @@ export class InstallTask {
       complete: false,
     })
 
-    // 基础阶段只准备原版文件
+    // 基础阶段只准备原版文件：versions/ 里的原版 json 与 jar 写进工作区，
+    // libraries/ 与 assets/ 仍然直接写真实游戏目录（多实例共享，不重复下载）
+    await fsp.mkdir(this.workDir, { recursive: true })
     this.basePlan = buildBasePlan({
       root,
+      workRoot: this.workDir,
       versionId: raw.id,
       instanceName: raw.id,
       versionUrl: this.request.versionUrl,
@@ -529,19 +540,21 @@ export class InstallTask {
     const isModpack = this.request.kind === 'modpack'
     let instanceJsonInfo: { sha1: string; size: number } | undefined
     if (needsInstanceJson || isModpack) {
+      // 实例 JSON 一律写进工作区，安装成功后再交付到 versions/<实例>/
       const normalized = normalizeInstanceJson(merged, this.instanceName)
       const text = JSON.stringify(normalized, null, 2)
-      await writeFileAtomic(instanceJsonPath(root, this.instanceName), text)
+      const workJsonPath = path.join(this.workDir, 'versions', this.instanceName, `${this.instanceName}.json`)
+      await writeFileAtomic(workJsonPath, text)
       instanceJsonInfo = {
         sha1: crypto.createHash('sha1').update(text, 'utf8').digest('hex'),
         size: Buffer.byteLength(text, 'utf8'),
       }
-      this.log('info', `已写入实例版本 JSON：versions/${this.instanceName}/${this.instanceName}.json`)
+      this.log('info', `已生成实例版本 JSON：${this.instanceName}.json（完整内联，不依赖原版基座）`)
     }
 
-    // 复制原版 jar 供实例使用
+    // 复制原版 jar 供实例使用（两者都在工作区里）
     const canonicalJar = this.basePlan?.clientJarPath
-    const targetJar = instanceJarPath(root, this.instanceName)
+    const targetJar = instanceJarPath(this.workDir, this.instanceName)
     if (canonicalJar && fs.existsSync(canonicalJar) && targetJar.toLowerCase() !== canonicalJar.toLowerCase()) {
       await fsp.mkdir(path.dirname(targetJar), { recursive: true })
       await fsp.copyFile(canonicalJar, targetJar)
@@ -549,6 +562,7 @@ export class InstallTask {
 
     this.finalPlan = buildBasePlan({
       root,
+      workRoot: this.workDir,
       versionId: vanillaId,
       instanceName: this.instanceName,
       versionUrl: this.request.versionUrl,
@@ -557,7 +571,8 @@ export class InstallTask {
       mode: this.mode,
       ctx: this.ruleContext,
       instanceJson: instanceJsonInfo,
-      wantVanillaJson: vanillaId !== this.instanceName,
+      // 实例 JSON 是完整内联的，不需要再单独保留一份原版 json
+      wantVanillaJson: false,
     })
     for (const warning of this.finalPlan.warnings) this.log('warn', warning)
     this.loaderQueue = this.registerFiles(this.finalPlan.files)
@@ -650,9 +665,70 @@ export class InstallTask {
       }
     }
 
+    // 先把工作区里的实例目录整体交付到 versions/<实例>/（会覆盖真实目录），
+    // 再写安装清单并释放「安装中」标记，顺序反了会把清单 / 标记一起覆盖掉
+    await this.deliverInstance()
+    await this.cleanupVanillaBase()
     await this.writeInstallManifest()
-    await unmarkInstalling(root, this.instanceName)
+    await this.unmarkInstallingSafe()
     this.phase = 'done'
+  }
+
+  /**
+   * 安装完成后清理游戏目录里遗留的「原版基座」目录（旧版本会在 versions/<mc>/ 留下原版 json 与 jar）。
+   * 只删除版本列表里被识别为基座的目录，真实原版实例（用户自己装的）不动。
+   */
+  private async cleanupVanillaBase(): Promise<void> {
+    const root = path.resolve(this.request.root)
+    const vanillaId = this.vanillaRaw?.id
+    if (!vanillaId || vanillaId === this.instanceName) return
+    const baseDir = instanceDir(root, vanillaId)
+    if (!fs.existsSync(baseDir)) return
+    // 有安装清单说明是用户自己的原版实例，不能删
+    if (fs.existsSync(manifestPath(root, vanillaId))) {
+      this.log('info', `保留 versions/${vanillaId}/（存在安装清单，是独立的原版实例）`)
+      return
+    }
+    const json = readVersionJsonSync(instanceJsonPath(root, vanillaId))
+    if (!json) return
+    // 与 instance.ts 的 looksLikeVanillaBase 保持一致：无继承、主类仍是原版主类
+    if (json.inheritsFrom) return
+    const vanillaMainClasses = new Set([
+      'net.minecraft.client.main.Main',
+      'net.minecraft.client.Minecraft',
+    ])
+    if (!json.mainClass || !vanillaMainClasses.has(json.mainClass)) return
+    await fsp.rm(baseDir, { recursive: true, force: true })
+    this.log('info', `已清理遗留的原版基座：versions/${vanillaId}/`)
+  }
+
+  /**
+   * 把工作区里的 versions/<实例>/ 交付到真实游戏目录。
+   * 对应 PCL 的「安装游戏」步骤：只把实例需要的东西落到 versions/ 里，
+   * 原版 json / jar 不再以「原版基座」的形式留在游戏目录中。
+   *
+   * 采用「合并覆盖」而不是「整目录替换」：补全 / 修复安装时，实例目录里的
+   * mods、存档、配置等用户数据不在工作区里，必须保留。
+   */
+  private async deliverInstance(): Promise<void> {
+    const root = path.resolve(this.request.root)
+    const source = instanceDir(this.workDir, this.instanceName)
+    const target = instanceDir(root, this.instanceName)
+    await fsp.mkdir(target, { recursive: true })
+    if (!fs.existsSync(source)) {
+      this.log('warn', `工作区里没有实例目录可交付：${source}`)
+      return
+    }
+    await copyDirMerge(source, target)
+    this.log('info', `实例文件已交付：versions/${this.instanceName}/`)
+  }
+
+  private async unmarkInstallingSafe(): Promise<void> {
+    try {
+      await unmarkInstalling(path.resolve(this.request.root), this.instanceName)
+    } catch {
+      // 忽略：下次安装时 isInstalling 的 2 小时过期逻辑会兜底
+    }
   }
 
   private async phaseExtract(): Promise<void> {
@@ -757,6 +833,7 @@ export class InstallTask {
   private createLoaderContext(): LoaderContext {
     return {
       root: path.resolve(this.request.root),
+      workRoot: this.workDir,
       instanceName: this.instanceName,
       mcVersion: this.vanillaRaw?.id as string,
       mode: this.mode,
